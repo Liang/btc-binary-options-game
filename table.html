@@ -1,13 +1,32 @@
-<script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const tableID = urlParams.get('id');
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+    <div class="admin-wrap" style="text-align: center; margin-top: 20vh;">
+        <h2 id="table-display">Table --</h2>
+        <p class="stat-label">Choose Next Move</p>
+        
+        <button class="btn-primary" style="background: var(--up-green);" onclick="placeBet('up')">▲ BTC UP</button>
+        <button class="btn-danger" onclick="placeBet('down')">▼ BTC DOWN</button>
+        
+        <div id="status-feedback" style="margin-top: 20px;"></div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const tableID = urlParams.get('id');
+        document.getElementById('table-display').innerText = `Table ${tableID}`;
 
-    function placeBet(dir) {
-        tablesRef.child(tableID).update({ currentBet: dir });
-        document.body.innerHTML = `<h1>Table ${tableID} Locked in ${dir.toUpperCase()}!</h1>`;
-    }
-</script>
-<body class="table-ui">
-    <button class="up" onclick="placeBet('up')">UP</button>
-    <button class="down" onclick="placeBet('down')">DOWN</button>
+        function placeBet(dir) {
+            db.ref(`tables/${tableID}`).update({ currentBet: dir });
+            document.getElementById('status-feedback').innerHTML = 
+                `<div class="bet-indicator bet-${dir}">Locked in ${dir.toUpperCase()}</div>`;
+        }
+    </script>
 </body>
+</html>
