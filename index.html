@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BTC Binary - Live Dashboard</title>
+    <title>BTC Binary - Tournament Projector</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -9,25 +9,41 @@
 </head>
 <body>
     <div id="winner-screen">
-        <h1 style="color: var(--primary-gold); font-size: 4rem;">CHAMPION FOUND!</h1>
-        <div id="winner-name" style="font-size: 10rem; color: white;">TABLE X</div>
+        <h1 style="color: var(--primary-gold); font-size: 4rem;">🏆 CHAMPION FOUND!</h1>
+        <div id="winner-name" style="font-size: 10rem; color: white; text-shadow: 0 0 30px var(--primary-gold);">TABLE X</div>
     </div>
 
     <div class="header">
-        <div class="stat-box"><div>JACKPOT</div><div id="jackpot" class="stat-value">$0</div></div>
-        <div style="text-align: center;"><div id="status-msg">READY</div><div id="timer" class="stat-value">--</div></div>
-        <div class="stat-box"><div>LIVE BTC</div><div id="btc-price" class="stat-value">------</div></div>
+        <div class="stat-box" style="flex: 2;">
+            <div class="stat-label">🔥 GRAND JACKPOT 🔥</div>
+            <div id="jackpot" class="stat-value" style="font-size: 4.5rem;">$0</div>
+        </div>
+        <div style="text-align: center; flex: 1;">
+            <div id="status-msg" style="font-weight: bold; color: var(--text-muted);">READY</div>
+            <div id="timer" class="stat-value">--</div>
+        </div>
+        <div class="stat-box" style="flex: 1.5;">
+            <div>LIVE BTC PRICE</div>
+            <div id="btc-price" class="stat-value">------</div>
+        </div>
     </div>
 
-    <div class="chart-container">
-        <div id="tradingview_btc" style="height: 100%;"></div>
-        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-        <script type="text/javascript">
-            new TradingView.widget({"autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "1", "theme": "dark", "container_id": "tradingview_btc", "hide_top_toolbar": true});
-        </script>
+    <div class="summary-bar">
+        <div class="summary-item">ACTIVE: <span id="active-count" style="color: var(--up-green)">0</span></div>
+        <div class="summary-item">OUT: <span id="out-count" style="color: var(--down-red)">0</span></div>
     </div>
 
-    <div class="grid" id="table-grid"></div>
+    <div class="main-layout">
+        <div class="chart-container">
+            <div id="tradingview_btc" style="height: 100%;"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+            <script type="text/javascript">
+                new TradingView.widget({"autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "1", "theme": "dark", "container_id": "tradingview_btc", "hide_top_toolbar": true});
+            </script>
+        </div>
+        
+        <div class="grid" id="table-grid"></div>
+    </div>
 
     <script src="app.js"></script>
     <script>
@@ -50,21 +66,29 @@
             if (data.winnerFound) {
                 document.getElementById('winner-screen').style.display = 'flex';
                 document.getElementById('winner-name').innerText = `TABLE ${data.winnerId}`;
-                confetti({ particleCount: 200, spread: 70, origin: { y: 0.6 } });
+                confetti({ particleCount: 250, spread: 90, origin: { y: 0.6 } });
             } else { document.getElementById('winner-screen').style.display = 'none'; }
         });
 
         tablesRef.on('value', snap => {
             const tables = snap.val() || {};
+            let active = 0, out = 0;
+            
             Object.keys(tables).forEach(id => {
                 const card = document.getElementById(`card-${id}`);
                 const betEl = document.getElementById(`bet-${id}`);
                 if (card && betEl) {
-                    card.className = `card ${tables[id].status} ${tables[id].currentBet ? 'betting' : ''}`;
+                    const status = tables[id].status || 'active';
+                    card.className = `card ${status} ${tables[id].currentBet ? 'betting' : ''}`;
                     betEl.innerText = tables[id].currentBet ? tables[id].currentBet.toUpperCase() : '';
                     betEl.className = `bet-indicator ${tables[id].currentBet ? 'bet-' + tables[id].currentBet : ''}`;
+                    
+                    if(status === 'active') active++; else out++;
                 }
             });
+
+            document.getElementById('active-count').innerText = active;
+            document.getElementById('out-count').innerText = out;
         });
 
         setInterval(async () => {
