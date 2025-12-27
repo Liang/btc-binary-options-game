@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>BTC Binary - Tournament Projector</title>
+    <meta charset="UTF-8">
+    <title>BTC Tournament - Live Projector</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -12,39 +13,40 @@
     <audio id="sfx-win" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
 
     <div id="winner-screen">
-        <h1 style="color: var(--primary-gold); font-size: 4rem;">🏆 TOURNAMENT CHAMPION</h1>
+        <h1 style="color: var(--primary-gold); font-size: 4rem; margin:0;">🏆 CHAMPION FOUND</h1>
         <div id="winner-name" style="font-size: 10rem; color: white;">TABLE X</div>
+        <div id="winner-prize" style="font-size: 4rem; color: var(--primary-gold);">WON $12,000</div>
     </div>
 
     <div class="header">
         <div class="stat-box" style="flex: 2;">
             <div class="stat-label">🔥 GRAND JACKPOT 🔥</div>
-            <div id="jackpot" class="stat-value" style="font-size: 5rem; text-shadow: 0 0 20px #f3ba2f;">$0</div>
+            <div id="jackpot" class="stat-value" style="font-size: 5.5rem;">$0</div>
         </div>
         <div style="text-align: center; flex: 1;">
-            <div id="status-msg" style="font-weight: bold; color: var(--text-muted); letter-spacing: 2px;">READY</div>
+            <div id="status-msg" style="color: var(--text-muted); font-weight: bold; letter-spacing: 2px;">READY</div>
             <div id="timer" class="stat-value">--</div>
         </div>
         <div class="stat-box" style="flex: 1.5;">
-            <div>LIVE BTC PRICE</div>
-            <div id="btc-price" class="stat-value">------</div>
+            <div class="stat-label">LIVE BTC PRICE (USD)</div>
+            <div id="btc-price" class="stat-value" style="font-size: 3rem;">------</div>
         </div>
     </div>
 
     <div class="main-layout">
         <div class="summary-panel">
-            <h3>TOURNAMENT STATUS</h3>
+            <h3 style="color: var(--primary-gold); border-bottom: 1px solid #444; padding-bottom: 10px;">TOURNAMENT</h3>
             <div class="summary-stats">
                 <div class="summary-item">
-                    <span class="label">ACTIVE</span>
-                    <span id="active-count" class="val" style="color: var(--up-green)">0</span>
+                    <span>ACTIVE</span>
+                    <span id="active-count" style="color: var(--up-green)">0</span>
                 </div>
                 <div class="summary-item">
-                    <span class="label">ELIMINATED</span>
-                    <span id="out-count" class="val" style="color: var(--down-red)">0</span>
+                    <span>ELIMINATED</span>
+                    <span id="out-count" style="color: var(--down-red)">0</span>
                 </div>
             </div>
-            <div class="instruction">Tables that guess wrong are OUT. <br> $1,200 added per elimination!</div>
+            <p style="font-size: 0.8rem; color: #888; margin-top: 20px;">Every table starts with $1,200. <br>Last table standing wins everything!</p>
         </div>
 
         <div class="content-area">
@@ -61,14 +63,13 @@
 
     <script src="app.js"></script>
     <script>
-        let lastJackpot = 0;
+        let lastJackpotValue = 0;
 
         stateRef.on('value', snap => {
             const data = snap.val() || {};
             const count = data.tableCount || 25;
             const grid = document.getElementById('table-grid');
             
-            // Build Grid dynamically
             if (grid.children.length !== count) {
                 grid.innerHTML = '';
                 for(let i=1; i<=count; i++) { 
@@ -76,14 +77,13 @@
                 }
             }
             
-            // Jackpot Logic & Sound
-            const currentJackpot = data.jackpot || 0;
-            if (currentJackpot > lastJackpot) {
+            // Jackpot Logic
+            const jackpot = data.jackpot || 0;
+            if (jackpot > lastJackpotValue) {
                 document.getElementById('sfx-jackpot').play().catch(()=>{});
-                lastJackpot = currentJackpot;
+                lastJackpotValue = jackpot;
             }
-            document.getElementById('jackpot').innerText = `$${currentJackpot.toLocaleString()}`;
-
+            document.getElementById('jackpot').innerText = `$${jackpot.toLocaleString()}`;
             document.getElementById('timer').innerText = data.timer || '--';
             document.getElementById('status-msg').innerText = data.status || "READY";
 
@@ -91,14 +91,16 @@
                 document.getElementById('sfx-win').play().catch(()=>{});
                 document.getElementById('winner-screen').style.display = 'flex';
                 document.getElementById('winner-name').innerText = `TABLE ${data.winnerId}`;
+                document.getElementById('winner-prize').innerText = `WON $${jackpot.toLocaleString()}`;
                 confetti({ particleCount: 300, spread: 100, origin: { y: 0.6 } });
-            } else { document.getElementById('winner-screen').style.display = 'none'; }
+            } else { 
+                document.getElementById('winner-screen').style.display = 'none'; 
+            }
         });
 
         tablesRef.on('value', snap => {
             const tables = snap.val() || {};
             let active = 0, out = 0;
-            
             Object.keys(tables).forEach(id => {
                 const card = document.getElementById(`card-${id}`);
                 const betEl = document.getElementById(`bet-${id}`);
@@ -107,22 +109,22 @@
                     card.className = `card ${status} ${tables[id].currentBet ? 'betting' : ''}`;
                     betEl.innerText = tables[id].currentBet ? tables[id].currentBet.toUpperCase() : '';
                     betEl.className = `bet-indicator ${tables[id].currentBet ? 'bet-' + tables[id].currentBet : ''}`;
-                    
                     if(status === 'active') active++; else out++;
                 }
             });
-
             document.getElementById('active-count').innerText = active;
             document.getElementById('out-count').innerText = out;
         });
 
-        // Live Price Sync
+        // FAST 1-SECOND PRICE UPDATE
         setInterval(async () => {
             const price = await fetchBTCPrice();
-            if(price) document.getElementById('btc-price').innerText = `$${price.toFixed(2)}`;
-        }, 2000);
+            if(price) {
+                const priceEl = document.getElementById('btc-price');
+                priceEl.innerText = `$${price.toFixed(2)}`;
+            }
+        }, 1000);
 
-        // Resume Audio Context on first click (Required by Browsers)
         window.addEventListener('click', () => {
             document.getElementById('sfx-jackpot').load();
             document.getElementById('sfx-win').load();
