@@ -6,16 +6,28 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
-<body style="padding: 20px;">
-    <h1>Admin Control</h1>
-    <button class="btn-gold" onclick="startRound()">1. START BETTING (30s)</button>
-    <button class="btn-gold" onclick="resolveRound()" style="background: #00c076;">2. RESOLVE ROUND</button>
-    <button class="btn-red" onclick="resetGame()">RESET ALL DATA</button>
+<body>
+    <div class="admin-card">
+        <h2>Control Panel</h2>
+        <div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px;">
+            <label>Total Tables:</label>
+            <input type="number" id="count-input" value="25" style="width: 50px; padding: 5px;">
+            <button onclick="setTableCount()" style="width: auto; padding: 5px 15px;">Set</button>
+        </div>
+        <button class="btn-gold" onclick="startRound()">1. START ROUND (30s)</button>
+        <button class="btn-gold" style="background:#00c076" onclick="resolveRound()">2. RESOLVE ROUND</button>
+        <button class="btn-red" onclick="resetGame()">RESET ALL</button>
+    </div>
     <script src="app.js"></script>
     <script>
+        function setTableCount() {
+            const count = parseInt(document.getElementById('count-input').value);
+            stateRef.update({ tableCount: count });
+            resetGame();
+        }
+
         async function startRound() {
-            const r = await fetch(BTSE_API); const j = await r.json();
-            const price = parseFloat(j[0].last);
+            const price = await fetchBTCPrice();
             stateRef.update({ status: "BETTING OPEN", timer: 30, startPrice: price, winnerFound: false });
             let t = 30;
             let int = setInterval(() => {
@@ -23,29 +35,38 @@
                 if(t <= 0) { clearInterval(int); stateRef.update({ status: "BETS LOCKED" }); }
             }, 1000);
         }
+
         async function resolveRound() {
-            const r = await fetch(BTSE_API); const j = await r.json();
-            const endPrice = parseFloat(j[0].last);
+            const endPrice = await fetchBTCPrice();
             stateRef.once('value', snap => {
                 const s = snap.val();
                 const result = endPrice >= s.startPrice ? 'up' : 'down';
                 tablesRef.once('value', tSnap => {
-                    const ts = tSnap.val(); let survivors = []; let potAdd = 0;
+                    const ts = tSnap.val() || {};
+                    let survivors = []; let potAdd = 0;
                     Object.keys(ts).forEach(id => {
                         if(ts[id].status === 'active') {
-                            if(ts[id].currentBet !== result) { tablesRef.child(id).update({status:'out', currentBet:null}); potAdd += 1200; }
-                            else { tablesRef.child(id).update({currentBet:null}); survivors.push(id); }
+                            if(ts[id].currentBet !== result) { 
+                                tablesRef.child(id).update({status:'out', currentBet:null}); potAdd += 1200; 
+                            } else { 
+                                tablesRef.child(id).update({currentBet:null}); survivors.push(id); 
+                            }
                         }
                     });
-                    let update = { status: `RESULT: ${result.toUpperCase()}`, jackpot: (s.jackpot || 0) + potAdd };
-                    if(survivors.length === 1) { update.winnerFound = true; update.winnerId = survivors[0]; }
-                    stateRef.update(update);
+                    let upd = { status: `RESULT: ${result.toUpperCase()}`, jackpot: (s.jackpot || 0) + potAdd };
+                    if(survivors.length === 1) { upd.winnerFound = true; upd.winnerId = survivors[0]; }
+                    stateRef.update(upd);
                 });
             });
         }
+
         function resetGame() {
-            stateRef.set({ jackpot: 0, status: "READY", winnerFound: false });
-            for(let i=1; i<=25; i++) tablesRef.child(i).set({ status: 'active', currentBet: null });
+            stateRef.once('value', snap => {
+                const count = snap.val().tableCount || 25;
+                stateRef.update({ jackpot: 0, status: "READY", winnerFound: false });
+                tablesRef.set({}); // Wipe all
+                for(let i=1; i<=count; i++) { tablesRef.child(i).set({ status: 'active', currentBet: null }); }
+            });
         }
     </script>
 </body>
