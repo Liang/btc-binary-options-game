@@ -15,5 +15,5 @@ const db = firebase.database();
 const stateRef = db.ref('gameState');
 const tablesRef = db.ref('tables');
 
-// BTSE Market Summary API
-const BTSE_API = "https://api.btse.com/spot/api/v3.2/market_summary?symbol=BTC-USDT";
+// Using Binance API as it has better CORS support for GitHub Pages
+const PRICE_API = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT";
