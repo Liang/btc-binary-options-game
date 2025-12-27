@@ -1,130 +1,111 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>BTC Tournament - War Room</title>
+    <title>BTC BINARY TOURNAMENT</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
-<body>
-    <audio id="sfx-jackpot" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
-
-    <div id="winner-screen">
-        <h1 style="color: var(--gold); font-size: 5rem;">🏆 CHAMPION</h1>
-        <div id="winner-name" style="font-size: 12rem; color: white; margin: 20px 0;">TABLE X</div>
-        <div id="winner-prize" style="font-size: 4rem; color: var(--gold); font-family: monospace;">$12,000</div>
-        <button class="btn-gold" style="margin-top: 50px;" onclick="document.getElementById('winner-screen').style.display='none'">CLOSE</button>
-    </div>
-
-    <div class="header">
-        <div class="stat-group">
-            <div class="stat-label">Grand Jackpot</div>
-            <div id="jackpot" class="stat-value" style="font-size: 3.5rem;">$0</div>
-        </div>
-        <div class="stat-group">
-            <div id="status-msg">WAITING FOR ADMIN</div>
-            <div id="timer" class="stat-value" style="font-size: 3rem;">--</div>
-        </div>
-        <div class="stat-group">
-            <div class="stat-label">Bitcoin Price (USD)</div>
-            <div id="btc-price" class="stat-value" style="font-size: 2.5rem;">------</div>
+<body class="projector">
+    <div id="winner-overlay" class="hidden">
+        <div class="winner-content">
+            <h1 class="glow-text">TOURNAMENT CHAMPION</h1>
+            <div id="winner-table-name">TABLE XX</div>
+            <div id="winner-final-prize">$0,000</div>
         </div>
     </div>
 
-    <div class="main-container">
-        <div class="sidebar">
-            <div class="summary-card">
-                <div class="summary-row"><span>ACTIVE</span><span id="active-count" style="color:var(--green)">0</span></div>
-                <div class="summary-row"><span>ELIMINATED</span><span id="out-count" style="color:var(--red)">0</span></div>
-            </div>
-            <div style="font-size: 0.85rem; color: #848e9c; line-height: 1.6;">
-                <strong>RULES:</strong><br>
-                1. Buy-in: $1,200 per table.<br>
-                2. Guess BTC price direction.<br>
-                3. Last Table Standing takes the whole pool!
-            </div>
+    <header class="game-header">
+        <div class="jackpot-container">
+            <span class="label">LIVE TOURNAMENT JACKPOT</span>
+            <div id="jackpot-value">$0</div>
         </div>
+        <div class="status-center">
+            <div id="game-status">INITIALIZING...</div>
+            <div id="countdown">--</div>
+        </div>
+        <div class="price-ticker">
+            <span class="label">BTC/USD</span>
+            <div id="btc-price">------</div>
+        </div>
+    </header>
 
-        <div class="content-area">
-            <div class="chart-wrapper">
-                <div id="tradingview_btc" style="height: 100%;"></div>
+    <main class="game-container">
+        <aside class="stats-sidebar">
+            <div class="stat-card">
+                <span class="label">ACTIVE</span>
+                <span id="count-active" class="val-green">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="label">ELIMINATED</span>
+                <span id="count-out" class="val-red">0</span>
+            </div>
+            <div class="log-container" id="game-log">
+                <div class="log-entry">Waiting for host...</div>
+            </div>
+        </aside>
+
+        <section class="action-zone">
+            <div class="chart-box">
+                <div id="tv-chart"></div>
                 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-                <script type="text/javascript">
-                    new TradingView.widget({"autosize": true, "symbol": "COINBASE:BTCUSD", "interval": "1", "theme": "dark", "container_id": "tradingview_btc", "style": "2", "hide_top_toolbar": true});
+                <script>
+                    new TradingView.widget({"autosize":true,"symbol":"COINBASE:BTCUSD","interval":"1","theme":"dark","style":"2","container_id":"tv-chart","hide_top_toolbar":true});
                 </script>
             </div>
-            <div class="grid" id="table-grid"></div>
-        </div>
-    </div>
+            <div id="table-grid" class="grid"></div>
+        </section>
+    </main>
 
     <script src="app.js"></script>
     <script>
         let lastJackpot = 0;
 
-        // Reset and Table Generation
         stateRef.on('value', snap => {
-            const data = snap.val() || {};
-            document.getElementById('jackpot').innerText = `$${(data.jackpot || 0).toLocaleString()}`;
-            document.getElementById('timer').innerText = data.timer || '--';
-            document.getElementById('status-msg').innerText = data.status || "READY";
+            const s = snap.val() || {};
+            document.getElementById('jackpot-value').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
+            document.getElementById('game-status').innerText = s.status || "READY";
+            document.getElementById('countdown').innerText = s.timer || "--";
 
-            if (data.jackpot > lastJackpot) {
-                document.getElementById('sfx-jackpot').play().catch(()=>{});
-                lastJackpot = data.jackpot;
-            }
-
-            if (data.winnerFound) {
-                document.getElementById('winner-screen').style.display = 'flex';
-                document.getElementById('winner-name').innerText = `TABLE ${data.winnerId}`;
-                document.getElementById('winner-prize').innerText = `$${data.jackpot.toLocaleString()}`;
-                confetti({ particleCount: 300, spread: 100, origin: { y: 0.6 } });
+            if(s.winnerFound) {
+                const overlay = document.getElementById('winner-overlay');
+                overlay.classList.remove('hidden');
+                document.getElementById('winner-table-name').innerText = `TABLE ${s.winnerId}`;
+                document.getElementById('winner-final-prize').innerText = `$${s.jackpot.toLocaleString()}`;
+                confetti({ particleCount: 400, spread: 100, origin: { y: 0.6 } });
             } else {
-                document.getElementById('winner-screen').style.display = 'none';
+                document.getElementById('winner-overlay').classList.add('hidden');
             }
         });
 
-        // Listen for tables data
         tablesRef.on('value', snap => {
-            const tables = snap.val() || {};
+            const data = snap.val() || {};
             const grid = document.getElementById('table-grid');
             let active = 0, out = 0;
 
-            // Clear grid if table count changed or reset triggered
-            if (Object.keys(tables).length !== grid.children.length) {
-                grid.innerHTML = '';
-            }
-
-            Object.keys(tables).forEach(id => {
-                let card = document.getElementById(`card-${id}`);
-                const status = tables[id].status || 'active';
-                const bet = tables[id].currentBet || '';
+            grid.innerHTML = ''; // Full re-render for stability on reset
+            Object.keys(data).sort((a,b) => a-b).forEach(id => {
+                const table = data[id];
+                const card = document.createElement('div');
+                card.className = `table-card ${table.status}`;
+                if (table.currentBet) card.classList.add('has-bet');
                 
-                if (!card) {
-                    card = document.createElement('div');
-                    card.id = `card-${id}`;
-                    card.className = `table-card ${status}`;
-                    card.innerHTML = `<div>T-${id}</div><div class="bet-tag"></div>`;
-                    grid.appendChild(card);
-                }
-
-                card.className = `table-card ${status} ${bet ? 'active' : ''}`;
-                const tag = card.querySelector('.bet-tag');
-                tag.innerText = bet.toUpperCase();
-                tag.className = `bet-tag ${bet ? 'bet-' + bet : ''}`;
-
-                if(status === 'active') active++; else out++;
+                card.innerHTML = `
+                    <div class="table-num">T-${id}</div>
+                    <div class="table-bet">${table.currentBet ? table.currentBet.toUpperCase() : ''}</div>
+                `;
+                grid.appendChild(card);
+                table.status === 'active' ? active++ : out++;
             });
 
-            document.getElementById('active-count').innerText = active;
-            document.getElementById('out-count').innerText = out;
+            document.getElementById('count-active').innerText = active;
+            document.getElementById('count-out').innerText = out;
         });
 
-        // Price Update (1s)
         setInterval(async () => {
-            const price = await fetchBTCPrice();
-            if(price) document.getElementById('btc-price').innerText = `$${price.toLocaleString()}`;
+            const p = await fetchBTCPrice();
+            if(p) document.getElementById('btc-price').innerText = `$${p.toFixed(2)}`;
         }, 1000);
     </script>
 </body>
