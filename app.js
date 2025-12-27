@@ -16,6 +16,7 @@ const stateRef = db.ref('gameState');
 const tablesRef = db.ref('tables');
 
 // Binance API is more reliable for GitHub Pages (No CORS issues)
+const BUY_IN = 1200;
 const PRICE_API = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT";
 
 async function fetchBTCPrice() {
