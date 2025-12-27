@@ -1,36 +1,90 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Control</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
-<body>
-    <div style="padding: 40px; text-align: center;">
-        <h2 id="t-label">Table --</h2>
-        <div id="table-status" style="margin-bottom: 20px; color: var(--primary-gold);">Checking Status...</div>
-        <div id="controls">
-            <button class="btn-gold" style="background:var(--up-green)" onclick="bet('up')">UP ▲</button>
-            <button class="btn-red" onclick="bet('down')">DOWN ▼</button>
+<body class="mobile-body">
+    <div id="table-app">
+        <header class="mobile-header">
+            <h2 id="display-table-num">TABLE --</h2>
+            <div id="table-status-badge">ACTIVE</div>
+        </header>
+
+        <div id="betting-zone">
+            <p class="instruction">Predict the next BTC move:</p>
+            <div class="bet-buttons">
+                <button id="btn-up" class="bet-btn up" onclick="makeBet('up')">UP (GREEN)</button>
+                <button id="btn-down" class="bet-btn down" onclick="makeBet('down')">DOWN (RED)</button>
+            </div>
+            <div id="selection-msg">Waiting for betting window...</div>
         </div>
-        <div id="feedback" style="margin-top:20px; font-weight:bold;"></div>
+
+        <div id="eliminated-msg" class="hidden">
+            <h1 style="color:var(--red)">ELIMINATED</h1>
+            <p>Your table is out of the tournament.<br>Better luck next time!</p>
+        </div>
     </div>
+
     <script src="app.js"></script>
     <script>
-        const id = new URLSearchParams(window.location.search).get('id');
-        document.getElementById('t-label').innerText = `Table ${id}`;
-        
-        tablesRef.child(id).on('value', snap => {
-            const t = snap.val();
-            if(!t) return;
-            document.getElementById('table-status').innerText = t.status === 'out' ? "❌ YOU ARE OUT" : "✅ ACTIVE";
-            document.getElementById('controls').style.display = t.status === 'out' ? "none" : "block";
+        // Get Table ID from URL: table.html?id=5
+        const params = new URLSearchParams(window.location.search);
+        const tableId = params.get('id');
+        document.getElementById('display-table-num').innerText = `TABLE ${tableId}`;
+
+        if (!tableId) {
+            document.body.innerHTML = "<h1>Error: No Table ID found in URL.</h1>";
+        }
+
+        // Listen for Table Status & Game State
+        tablesRef.child(tableId).on('value', snap => {
+            const data = snap.val() || {};
+            const badge = document.getElementById('table-status-badge');
+            const zone = document.getElementById('betting-zone');
+            const elim = document.getElementById('eliminated-msg');
+
+            if (data.status === 'out') {
+                badge.innerText = "OUT";
+                badge.style.background = "var(--red)";
+                zone.classList.add('hidden');
+                elim.classList.remove('hidden');
+                document.body.style.opacity = "0.6";
+            } else {
+                badge.innerText = "ACTIVE";
+                badge.style.background = "var(--green)";
+                zone.classList.remove('hidden');
+                elim.classList.add('hidden');
+                document.body.style.opacity = "1";
+            }
+
+            // Highlight chosen bet
+            if (data.currentBet) {
+                document.getElementById('selection-msg').innerText = `Selection Locked: ${data.currentBet.toUpperCase()}`;
+                document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
+                document.getElementById(`btn-${data.currentBet}`).classList.add('selected');
+            } else {
+                document.getElementById('selection-msg').innerText = "Make your choice!";
+                document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
+            }
         });
 
-        function bet(dir) {
-            tablesRef.child(id).update({ currentBet: dir });
-            document.getElementById('feedback').innerText = `Bet Locked: ${dir.toUpperCase()}`;
+        // Block buttons if window is closed
+        stateRef.on('value', snap => {
+            const s = snap.val() || {};
+            const btns = document.querySelectorAll('.bet-btn');
+            const isClosed = s.status !== "ACCEPTING BETS";
+            btns.forEach(b => b.disabled = isClosed);
+            if(isClosed && s.status !== "TOURNAMENT START") {
+                document.getElementById('selection-msg').innerText = "Betting Window Closed";
+            }
+        });
+
+        function makeBet(dir) {
+            tablesRef.child(tableId).update({ currentBet: dir });
         }
     </script>
 </body>

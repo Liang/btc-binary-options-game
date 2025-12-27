@@ -9,22 +9,23 @@ const firebaseConfig = {
     appId: "1:887217818566:web:9ddac7bcab764a3b2740c7"
 };
 
-// Initialize Firebase
-if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
+// State Nodes
 const stateRef = db.ref('gameState');
 const tablesRef = db.ref('tables');
 
-// Using Coinbase API - More reliable for GitHub Pages
-const PRICE_API = "https://api.coinbase.com/v2/prices/BTC-USD/spot";
+const BUY_IN = 1200;
 
+// Reliable Price Fetch (Coinbase avoids CORS issues on GitHub Pages)
 async function fetchBTCPrice() {
     try {
-        const response = await fetch(PRICE_API);
-        const data = await response.json();
+        const res = await fetch("https://api.coinbase.com/v2/prices/BTC-USD/spot");
+        const data = await res.json();
         return parseFloat(data.data.amount);
-    } catch (e) { 
+    } catch (e) {
         console.error("Price Fetch Error:", e);
-        return null; 
+        return null;
     }
 }

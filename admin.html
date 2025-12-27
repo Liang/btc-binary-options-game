@@ -1,80 +1,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tournament Admin</title>
+    <title>ADMIN COMMAND</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
-<body style="padding: 40px; background: #0b0e11;">
-    <div class="summary-card" style="max-width: 500px; margin: auto;">
-        <h2 style="color:var(--gold)">Tournament Control</h2>
-        
-        <div style="margin-bottom: 30px;">
-            <label>Table Count:</label>
-            <input type="number" id="count-input" value="10" style="width: 50px; background: #2b3139; color: white; border: 1px solid #444; padding: 5px;">
-            <button class="btn-gold" style="padding: 5px 15px;" onclick="setupTournament()">Set Up</button>
+<body class="admin-body">
+    <div class="admin-panel">
+        <h1>TOURNAMENT CONTROL</h1>
+        <div class="control-group">
+            <input type="number" id="init-count" value="10" placeholder="Table Count">
+            <button onclick="initGame()" class="btn-blue">INITIALIZE TOURNAMENT</button>
         </div>
-
-        <button class="btn-gold" style="width: 100%; margin-bottom: 10px;" onclick="startBetting()">1. START 60s BETTING</button>
-        <button class="btn-gold" style="width: 100%; margin-bottom: 10px; background:#6f42c1; color:white;" onclick="fastForward()">🧪 SIMULATE & RESOLVE</button>
-        <button class="btn-gold" style="width: 100%; margin-bottom: 10px; background:var(--green); color:black;" onclick="resolveReal()">2. RESOLVE REAL PRICE</button>
-        <button class="btn-gold" style="width: 100%; background:var(--red); color:white;" onclick="resetTournament()">⚠️ FULL HARD RESET</button>
+        
+        <div class="action-buttons">
+            <button onclick="startRound()" class="btn-gold">1. START 60s BETTING</button>
+            <button onclick="resolveGame('up')" class="btn-green">SIMULATE WIN: UP</button>
+            <button onclick="resolveGame('down')" class="btn-red">SIMULATE WIN: DOWN</button>
+            <button onclick="autoResolve()" class="btn-white">RESOLVE VIA REAL PRICE</button>
+        </div>
     </div>
 
     <script src="app.js"></script>
     <script>
-        const BUY_IN = 1200;
-
-        function setupTournament() {
-            const count = parseInt(document.getElementById('count-input').value);
-            // Use .set to completely overwrite old data
+        function initGame() {
+            const count = document.getElementById('init-count').value;
             stateRef.set({
-                tableCount: count,
+                tableCount: parseInt(count),
                 jackpot: 0,
-                status: "READY",
+                status: "TOURNAMENT START",
                 winnerFound: false,
-                timer: "--",
-                startPrice: 0
+                timer: "--"
             });
-            
-            tablesRef.set({}); // Wipe tables
+            tablesRef.set({});
             for(let i=1; i<=count; i++) {
                 tablesRef.child(i).set({ status: 'active', currentBet: "" });
             }
         }
 
-        async function startBetting() {
+        async function startRound() {
             const price = await fetchBTCPrice();
-            stateRef.update({ status: "BETS OPEN", timer: 60, startPrice: price, winnerFound: false });
+            stateRef.update({ status: "BETS OPENING", startPrice: price, timer: 60 });
             let t = 60;
             let itv = setInterval(() => {
                 t--;
-                stateRef.update({ timer: t });
-                if(t <= 0) { clearInterval(itv); stateRef.update({ status: "BETS LOCKED" }); }
+                stateRef.update({ timer: t, status: "ACCEPTING BETS" });
+                if(t<=0) { clearInterval(itv); stateRef.update({ status: "BETS LOCKED", timer: "CLOSED" }); }
             }, 1000);
         }
 
-        function fastForward() { processTournamentRound(Math.random() > 0.5 ? 'up' : 'down'); }
-
-        async function resolveReal() {
+        async function autoResolve() {
             const price = await fetchBTCPrice();
-            stateRef.once('value', snap => {
-                const res = price >= snap.val().startPrice ? 'up' : 'down';
-                processTournamentRound(res);
+            stateRef.once('value', s => {
+                const res = price >= s.val().startPrice ? 'up' : 'down';
+                resolveGame(res);
             });
         }
 
-        function processTournamentRound(result) {
+        function resolveGame(winningDir) {
             stateRef.once('value', snap => {
-                const s = snap.val();
+                const game = snap.val();
                 tablesRef.once('value', tSnap => {
-                    const ts = tSnap.val() || {};
+                    const tables = tSnap.val();
                     let survivors = [];
-                    Object.keys(ts).forEach(id => {
-                        if(ts[id].status === 'active') {
-                            let bet = ts[id].currentBet || (Math.random() > 0.5 ? 'up' : 'down');
-                            if(bet !== result) {
+
+                    Object.keys(tables).forEach(id => {
+                        if(tables[id].status === 'active') {
+                            // If table didn't bet, simulate one for stability during demo
+                            let bet = tables[id].currentBet || (Math.random() > 0.5 ? 'up' : 'down');
+                            if(bet !== winningDir) {
                                 tablesRef.child(id).update({ status: 'out', currentBet: "" });
                             } else {
                                 tablesRef.child(id).update({ currentBet: "" });
@@ -83,24 +78,18 @@
                         }
                     });
 
-                    let totalPrize = (s.tableCount - survivors.length) * BUY_IN;
-                    let win = survivors.length === 1;
-                    if(win) totalPrize = s.tableCount * BUY_IN;
+                    let win = (survivors.length === 1);
+                    // Jackpot = (Total Tables - Survivors) * 1200. If 1 survivor, they take all.
+                    let totalPool = win ? (game.tableCount * BUY_IN) : (game.tableCount - survivors.length) * BUY_IN;
 
-                    stateRef.update({ 
-                        status: `RESULT: ${result.toUpperCase()}`, 
-                        jackpot: totalPrize,
+                    stateRef.update({
+                        status: `RESULT: ${winningDir.toUpperCase()}`,
+                        jackpot: totalPool,
                         winnerFound: win,
                         winnerId: win ? survivors[0] : null
                     });
                 });
             });
-        }
-
-        function resetTournament() {
-            if(confirm("THIS WILL WIPE EVERYTHING. ARE YOU SURE?")) {
-                setupTournament();
-            }
         }
     </script>
 </body>
