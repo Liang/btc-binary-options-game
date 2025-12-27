@@ -15,5 +15,13 @@ const db = firebase.database();
 const stateRef = db.ref('gameState');
 const tablesRef = db.ref('tables');
 
-// Using Binance API as it has better CORS support for GitHub Pages
+// Binance API (CORS Friendly)
 const PRICE_API = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT";
+
+async function fetchBTCPrice() {
+    try {
+        const r = await fetch(PRICE_API);
+        const j = await r.json();
+        return parseFloat(j.price);
+    } catch (e) { return null; }
+}
