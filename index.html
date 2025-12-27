@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BTC Binary - Projector</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="projector">
+    <div class="header">
+        <div class="stat"><small>TOTAL POOL</small><div id="jackpot">$0</div></div>
+        <div class="stat"><small>LIVE BTC (BTSE)</small><div id="btc-price">Loading...</div></div>
+    </div>
+
+    <div id="game-info">
+        <div id="status-msg">WAITING FOR NEXT ROUND</div>
+        <div id="timer">--</div>
+    </div>
+
+    <div class="grid" id="table-grid"></div>
+
+    <script src="app.js"></script>
+    <script>
+        // Create 25 Table Cards
+        const grid = document.getElementById('table-grid');
+        for(let i=1; i<=25; i++) {
+            grid.innerHTML += `<div id="card-${i}" class="card">Table ${i}<div class="bet"></div></div>`;
+        }
+
+        // Listen for Global State (Timer, Price, Jackpot)
+        stateRef.on('value', snap => {
+            const data = snap.val() || {};
+            document.getElementById('timer').innerText = data.timer || '--';
+            document.getElementById('jackpot').innerText = `$${data.jackpot || 0}`;
+            document.getElementById('status-msg').innerText = data.status || "READY";
+        });
+
+        // Listen for Table Bets & Status
+        tablesRef.on('value', snap => {
+            const tables = snap.val() || {};
+            for(let i=1; i<=25; i++) {
+                const card = document.getElementById(`card-${i}`);
+                const tData = tables[i] || { status: 'active' };
+                card.className = `card ${tData.status} ${tData.currentBet ? 'betting' : ''}`;
+                card.querySelector('.bet').innerText = tData.currentBet ? tData.currentBet.toUpperCase() : '';
+            }
+        });
+
+        // Fetch Live BTSE Price
+        setInterval(async () => {
+            const res = await fetch(BTSE_API);
+            const data = await res.json();
+            document.getElementById('btc-price').innerText = `$${parseFloat(data[0].last).toLocaleString()}`;
+        }, 2000);
+    </script>
+</body>
+</html>
