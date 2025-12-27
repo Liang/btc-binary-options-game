@@ -2,55 +2,55 @@
 <html>
 <head>
     <title>BTC Binary - Projector</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
-<body class="projector">
+<body>
+    <div id="winner-screen">
+        <h1 style="color: var(--primary-gold); font-size: 4rem;">CHAMPION FOUND!</h1>
+        <div id="winner-name" style="font-size: 8rem; color: white;">TABLE X</div>
+    </div>
     <div class="header">
-        <div class="stat"><small>TOTAL POOL</small><div id="jackpot">$0</div></div>
-        <div class="stat"><small>LIVE BTC (BTSE)</small><div id="btc-price">Loading...</div></div>
+        <div class="stat-box"><div>JACKPOT</div><div id="jackpot" class="stat-value">$0</div></div>
+        <div style="text-align: center;"><div id="status-msg">READY</div><div id="timer" class="stat-value">00</div></div>
+        <div class="stat-box"><div>BTC PRICE</div><div id="btc-price" class="stat-value">------</div></div>
     </div>
-
-    <div id="game-info">
-        <div id="status-msg">WAITING FOR NEXT ROUND</div>
-        <div id="timer">--</div>
+    <div class="chart-container" id="chart-section">
+        <div id="tradingview_btc" style="height: 100%;"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+        <script type="text/javascript">
+            new TradingView.widget({"autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "1", "theme": "dark", "container_id": "tradingview_btc"});
+        </script>
     </div>
-
     <div class="grid" id="table-grid"></div>
-
     <script src="app.js"></script>
     <script>
-        // Create 25 Table Cards
         const grid = document.getElementById('table-grid');
-        for(let i=1; i<=25; i++) {
-            grid.innerHTML += `<div id="card-${i}" class="card">Table ${i}<div class="bet"></div></div>`;
-        }
-
-        // Listen for Global State (Timer, Price, Jackpot)
+        for(let i=1; i<=25; i++) { grid.innerHTML += `<div id="card-${i}" class="card">T-${i}<div id="bet-${i}"></div></div>`; }
         stateRef.on('value', snap => {
-            const data = snap.val() || {};
-            document.getElementById('timer').innerText = data.timer || '--';
-            document.getElementById('jackpot').innerText = `$${data.jackpot || 0}`;
-            document.getElementById('status-msg').innerText = data.status || "READY";
-        });
-
-        // Listen for Table Bets & Status
-        tablesRef.on('value', snap => {
-            const tables = snap.val() || {};
-            for(let i=1; i<=25; i++) {
-                const card = document.getElementById(`card-${i}`);
-                const tData = tables[i] || { status: 'active' };
-                card.className = `card ${tData.status} ${tData.currentBet ? 'betting' : ''}`;
-                card.querySelector('.bet').innerText = tData.currentBet ? tData.currentBet.toUpperCase() : '';
+            const d = snap.val() || {};
+            document.getElementById('jackpot').innerText = `$${(d.jackpot || 0)}`;
+            document.getElementById('timer').innerText = d.timer || '00';
+            document.getElementById('status-msg').innerText = d.status || "READY";
+            if (d.winnerFound) {
+                document.getElementById('winner-screen').style.display = 'flex';
+                document.getElementById('winner-name').innerText = `TABLE ${d.winnerId}`;
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             }
         });
-
-        // Fetch Live BTSE Price
+        tablesRef.on('value', snap => {
+            const ts = snap.val() || {};
+            for(let i=1; i<=25; i++) {
+                const t = ts[i] || {status: 'active'};
+                document.getElementById(`card-${i}`).className = `card ${t.status} ${t.currentBet ? 'betting' : ''}`;
+                document.getElementById(`bet-${i}`).innerText = t.currentBet ? t.currentBet.toUpperCase() : '';
+            }
+        });
         setInterval(async () => {
-            const res = await fetch(BTSE_API);
-            const data = await res.json();
-            document.getElementById('btc-price').innerText = `$${parseFloat(data[0].last).toLocaleString()}`;
+            const r = await fetch(BTSE_API); const j = await r.json();
+            document.getElementById('btc-price').innerText = `$${parseFloat(j[0].last).toFixed(2)}`;
         }, 2000);
     </script>
 </body>

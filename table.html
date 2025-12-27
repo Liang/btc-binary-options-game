@@ -1,13 +1,26 @@
-<script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const tableID = urlParams.get('id');
-
-    function placeBet(dir) {
-        tablesRef.child(tableID).update({ currentBet: dir });
-        document.body.innerHTML = `<h1>Table ${tableID} Locked in ${dir.toUpperCase()}!</h1>`;
-    }
-</script>
-<body class="table-ui">
-    <button class="up" onclick="placeBet('up')">UP</button>
-    <button class="down" onclick="placeBet('down')">DOWN</button>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+    <div style="padding: 40px; text-align: center;">
+        <h2 id="t-label">Table --</h2>
+        <button class="btn-gold" style="background:var(--up-green)" onclick="bet('up')">UP ▲</button>
+        <button class="btn-red" onclick="bet('down')">DOWN ▼</button>
+        <div id="feedback" style="margin-top:20px; font-weight:bold;"></div>
+    </div>
+    <script src="app.js"></script>
+    <script>
+        const id = new URLSearchParams(window.location.search).get('id');
+        document.getElementById('t-label').innerText = `Table ${id}`;
+        function bet(dir) {
+            tablesRef.child(id).update({ currentBet: dir });
+            document.getElementById('feedback').innerText = `Locked: ${dir.toUpperCase()}`;
+        }
+    </script>
 </body>
+</html>
