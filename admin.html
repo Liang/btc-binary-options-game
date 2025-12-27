@@ -1,32 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tournament Admin - Controller</title>
+    <title>Tournament Admin</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body style="padding: 20px;">
     <div class="admin-card">
-        <h2 style="color: var(--primary-gold); margin-top: 0;">Tournament Controller</h2>
-        
-        <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #444; border-radius: 8px;">
-            <label>Set Table Count:</label>
-            <input type="number" id="count-input" value="10" style="width: 60px; padding: 5px;">
-            <button onclick="setupTournament()" style="width: auto; padding: 5px 15px; margin-left:10px;">Setup Game</button>
+        <h2>Tournament Controller</h2>
+        <div style="margin-bottom: 20px;">
+            <label>Total Tables:</label>
+            <input type="number" id="count-input" value="10" style="width: 50px;">
+            <button onclick="setupTournament()">Set Up Tournament</button>
         </div>
 
-        <button class="btn-gold" onclick="startBetting()">1. OPEN 60s BETTING WINDOW</button>
-        
-        <button class="btn-gold" style="background:#6f42c1; color: white;" onclick="fastForwardRound()">
-            🧪 FAST-FORWARD (Simulate & Resolve)
-        </button>
-
-        <button class="btn-gold" style="background:#28a745" onclick="resolveTournamentRound()">
-            2. RESOLVE (Use Real Price)
-        </button>
-        
-        <button class="btn-red" onclick="resetTournament()">HARD RESET TO START</button>
+        <button class="btn-gold" onclick="startBetting()">1. START 60s BETTING</button>
+        <button class="btn-gold" style="background:#6f42c1; color:white;" onclick="fastForward()">🧪 SIMULATE & RESOLVE</button>
+        <button class="btn-gold" style="background:#28a745" onclick="resolveReal()">2. RESOLVE REAL PRICE</button>
+        <button class="btn-red" onclick="resetTournament()">RESET ALL</button>
     </div>
 
     <script src="app.js"></script>
@@ -35,54 +27,45 @@
 
         function setupTournament() {
             const count = parseInt(document.getElementById('count-input').value);
-            stateRef.update({ tableCount: count, jackpot: 0, status: "TOURNAMENT START", winnerFound: false });
+            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", winnerFound: false });
             tablesRef.set({});
-            for(let i=1; i<=count; i++) {
-                tablesRef.child(i).set({ status: 'active', currentBet: null });
-            }
-            alert(`Set up for ${count} tables. Total prize pool: $${(count * BUY_IN).toLocaleString()}`);
+            for(let i=1; i<=count; i++) { tablesRef.child(i).set({ status: 'active', currentBet: null }); }
         }
 
         async function startBetting() {
             const price = await fetchBTCPrice();
             stateRef.update({ status: "BETTING OPEN", timer: 60, startPrice: price, winnerFound: false });
             let t = 60;
-            let timer = setInterval(() => {
+            let itv = setInterval(() => {
                 t--; stateRef.update({ timer: t });
-                if(t <= 0) { clearInterval(timer); stateRef.update({ status: "BETS LOCKED" }); }
+                if(t <= 0) { clearInterval(itv); stateRef.update({ status: "BETS LOCKED" }); }
             }, 1000);
         }
 
-        async function fastForwardRound() {
-            const simulatedResult = Math.random() > 0.5 ? 'up' : 'down';
-            processLogic(simulatedResult);
+        async function fastForward() {
+            const res = Math.random() > 0.5 ? 'up' : 'down';
+            processTournamentRound(res);
         }
 
-        async function resolveTournamentRound() {
-            const endPrice = await fetchBTCPrice();
+        async function resolveReal() {
+            const price = await fetchBTCPrice();
             stateRef.once('value', snap => {
-                const s = snap.val();
-                const result = endPrice >= s.startPrice ? 'up' : 'down';
-                processLogic(result);
+                const res = price >= snap.val().startPrice ? 'up' : 'down';
+                processTournamentRound(res);
             });
         }
 
-        function processLogic(result) {
+        function processTournamentRound(result) {
             stateRef.once('value', snap => {
                 const s = snap.val();
                 tablesRef.once('value', tSnap => {
                     const ts = tSnap.val() || {};
                     let survivors = [];
-                    let newlyEliminated = 0;
-
                     Object.keys(ts).forEach(id => {
                         if(ts[id].status === 'active') {
-                            // If simulating, assign random bets if none exist
-                            if(!ts[id].currentBet) ts[id].currentBet = Math.random() > 0.5 ? 'up' : 'down';
-                            
-                            if(ts[id].currentBet !== result) {
+                            let bet = ts[id].currentBet || (Math.random() > 0.5 ? 'up' : 'down');
+                            if(bet !== result) {
                                 tablesRef.child(id).update({ status: 'out', currentBet: null });
-                                newlyEliminated++;
                             } else {
                                 tablesRef.child(id).update({ currentBet: null });
                                 survivors.push(id);
@@ -90,28 +73,23 @@
                         }
                     });
 
-                    // Update Jackpot: (Total Tables - Survivors) * 1200
-                    let currentJackpot = (s.tableCount - survivors.length) * BUY_IN;
+                    // Update Jackpot: (All Tables - Survivors) * 1200
+                    let totalPrize = (s.tableCount - survivors.length) * BUY_IN;
+                    let winnerFound = survivors.length === 1;
                     
-                    let updateData = { 
+                    if(winnerFound) totalPrize = s.tableCount * BUY_IN; // Winner gets everything
+
+                    stateRef.update({ 
                         status: `RESULT: ${result.toUpperCase()}`, 
-                        jackpot: currentJackpot 
-                    };
-
-                    if (survivors.length === 1) {
-                        updateData.winnerFound = true;
-                        updateData.winnerId = survivors[0];
-                        updateData.jackpot = s.tableCount * BUY_IN; // Winner takes all!
-                    }
-
-                    stateRef.update(updateData);
+                        jackpot: totalPrize,
+                        winnerFound: winnerFound,
+                        winnerId: winnerFound ? survivors[0] : null
+                    });
                 });
             });
         }
 
-        function resetTournament() {
-            if(confirm("Wipe all data?")) setupTournament();
-        }
+        function resetTournament() { if(confirm("Clear?")) setupTournament(); }
     </script>
 </body>
 </html>
