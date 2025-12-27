@@ -1,26 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Game Admin</title>
+    <title>Admin Panel</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
-<body>
+<body style="padding: 20px;">
     <div class="admin-card">
-        <h2>Control Panel</h2>
-        <div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px;">
-            <label>Total Tables:</label>
-            <input type="number" id="count-input" value="25" style="width: 50px; padding: 5px;">
-            <button onclick="setTableCount()" style="width: auto; padding: 5px 15px;">Set</button>
+        <h2>Game Management</h2>
+        
+        <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #444;">
+            <label>Table Count:</label>
+            <input type="number" id="count-input" value="25" style="width: 50px;">
+            <button onclick="setTables()" style="width: auto; padding: 5px 10px;">Set & Reset</button>
         </div>
-        <button class="btn-gold" onclick="startRound()">1. START ROUND (30s)</button>
-        <button class="btn-gold" style="background:#00c076" onclick="resolveRound()">2. RESOLVE ROUND</button>
+
+        <button class="btn-gold" onclick="startRound()">1. START BETTING (30s)</button>
+        <button class="btn-gold" style="background:#00c076" onclick="simulateBets()">🧪 SIMULATE ALL BETS</button>
+        <button class="btn-gold" style="background:#6c757d" onclick="resolveRound()">2. RESOLVE ROUND</button>
         <button class="btn-red" onclick="resetGame()">RESET ALL</button>
     </div>
+
     <script src="app.js"></script>
     <script>
-        function setTableCount() {
+        function setTables() {
             const count = parseInt(document.getElementById('count-input').value);
             stateRef.update({ tableCount: count });
             resetGame();
@@ -28,12 +32,24 @@
 
         async function startRound() {
             const price = await fetchBTCPrice();
-            stateRef.update({ status: "BETTING OPEN", timer: 30, startPrice: price, winnerFound: false });
+            stateRef.update({ status: "BETS OPEN", timer: 30, startPrice: price, winnerFound: false });
             let t = 30;
             let int = setInterval(() => {
                 t--; stateRef.update({ timer: t });
                 if(t <= 0) { clearInterval(int); stateRef.update({ status: "BETS LOCKED" }); }
             }, 1000);
+        }
+
+        function simulateBets() {
+            tablesRef.once('value', snap => {
+                const tables = snap.val();
+                Object.keys(tables).forEach(id => {
+                    if (tables[id].status === 'active') {
+                        const randomBet = Math.random() > 0.5 ? 'up' : 'down';
+                        tablesRef.child(id).update({ currentBet: randomBet });
+                    }
+                });
+            });
         }
 
         async function resolveRound() {
@@ -42,14 +58,17 @@
                 const s = snap.val();
                 const result = endPrice >= s.startPrice ? 'up' : 'down';
                 tablesRef.once('value', tSnap => {
-                    const ts = tSnap.val() || {};
-                    let survivors = []; let potAdd = 0;
+                    const ts = tSnap.val();
+                    let survivors = [];
+                    let potAdd = 0;
                     Object.keys(ts).forEach(id => {
                         if(ts[id].status === 'active') {
-                            if(ts[id].currentBet !== result) { 
-                                tablesRef.child(id).update({status:'out', currentBet:null}); potAdd += 1200; 
-                            } else { 
-                                tablesRef.child(id).update({currentBet:null}); survivors.push(id); 
+                            if(ts[id].currentBet !== result) {
+                                tablesRef.child(id).update({status: 'out', currentBet: null});
+                                potAdd += 1200;
+                            } else {
+                                tablesRef.child(id).update({currentBet: null});
+                                survivors.push(id);
                             }
                         }
                     });
@@ -64,7 +83,7 @@
             stateRef.once('value', snap => {
                 const count = snap.val().tableCount || 25;
                 stateRef.update({ jackpot: 0, status: "READY", winnerFound: false });
-                tablesRef.set({}); // Wipe all
+                tablesRef.set({});
                 for(let i=1; i<=count; i++) { tablesRef.child(i).set({ status: 'active', currentBet: null }); }
             });
         }
