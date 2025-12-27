@@ -1,91 +1,107 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Panel</title>
+    <title>Tournament Admin</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body style="padding: 20px;">
     <div class="admin-card">
-        <h2>Game Management</h2>
+        <h2>Tournament Master Control</h2>
         
         <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #444;">
-            <label>Table Count:</label>
+            <label>Total Participating Tables:</label>
             <input type="number" id="count-input" value="25" style="width: 50px;">
-            <button onclick="setTables()" style="width: auto; padding: 5px 10px;">Set & Reset</button>
+            <button onclick="setupTournament()" style="width: auto; padding: 5px 10px;">Setup Game</button>
         </div>
 
-        <button class="btn-gold" onclick="startRound()">1. START BETTING (30s)</button>
-        <button class="btn-gold" style="background:#00c076" onclick="simulateBets()">🧪 SIMULATE ALL BETS</button>
-        <button class="btn-gold" style="background:#6c757d" onclick="resolveRound()">2. RESOLVE ROUND</button>
-        <button class="btn-red" onclick="resetGame()">RESET ALL</button>
+        <button class="btn-gold" onclick="startBetting()">1. OPEN 60s BETTING WINDOW</button>
+        <button class="btn-gold" style="background:#28a745" onclick="resolveTournamentRound()">2. CALCULATE RESULTS & ELIMINATE</button>
+        <button class="btn-gold" style="background:#6c757d" onclick="simulateBets()">🧪 SIMULATE REMAINING TABLE BETS</button>
+        <button class="btn-red" onclick="resetTournament()">HARD RESET TO START</button>
     </div>
 
     <script src="app.js"></script>
     <script>
-        function setTables() {
+        function setupTournament() {
             const count = parseInt(document.getElementById('count-input').value);
-            stateRef.update({ tableCount: count });
-            resetGame();
+            stateRef.update({ tableCount: count, jackpot: 0, status: "READY TO START", winnerFound: false });
+            tablesRef.set({});
+            for(let i=1; i<=count; i++) {
+                tablesRef.child(i).set({ status: 'active', currentBet: null });
+            }
+            alert(`Tournament set for ${count} tables ($${(count*BUY_IN).toLocaleString()} Potential Pot)`);
         }
 
-        async function startRound() {
+        async function startBetting() {
             const price = await fetchBTCPrice();
-            stateRef.update({ status: "BETS OPEN", timer: 30, startPrice: price, winnerFound: false });
-            let t = 30;
-            let int = setInterval(() => {
+            stateRef.update({ status: "BETTING OPEN", timer: 60, startPrice: price, winnerFound: false });
+            let t = 60;
+            let timer = setInterval(() => {
                 t--; stateRef.update({ timer: t });
-                if(t <= 0) { clearInterval(int); stateRef.update({ status: "BETS LOCKED" }); }
+                if(t <= 0) { clearInterval(timer); stateRef.update({ status: "BETS LOCKED" }); }
             }, 1000);
+        }
+
+        async function resolveTournamentRound() {
+            const endPrice = await fetchBTCPrice();
+            stateRef.once('value', snap => {
+                const s = snap.val();
+                const result = endPrice >= s.startPrice ? 'up' : 'down';
+                
+                tablesRef.once('value', tSnap => {
+                    const ts = tSnap.val() || {};
+                    let survivors = [];
+                    let newlyEliminated = 0;
+
+                    Object.keys(ts).forEach(id => {
+                        if(ts[id].status === 'active') {
+                            if(ts[id].currentBet !== result) {
+                                // Incorrect guess -> OUT & Add to Jackpot
+                                tablesRef.child(id).update({ status: 'out', currentBet: null });
+                                newlyEliminated++;
+                            } else {
+                                // Correct guess -> Survive
+                                tablesRef.child(id).update({ currentBet: null });
+                                survivors.push(id);
+                            }
+                        }
+                    });
+
+                    let newJackpot = (s.jackpot || 0) + (newlyEliminated * BUY_IN);
+                    let updateData = { 
+                        status: `RESULT: ${result.toUpperCase()} - ${newlyEliminated} OUT`, 
+                        jackpot: newJackpot 
+                    };
+
+                    // Finale Logic: Check for the Last Table Standing
+                    if (survivors.length === 1) {
+                        updateData.winnerFound = true;
+                        updateData.winnerId = survivors[0];
+                        updateData.status = "CHAMPION CROWNED!";
+                    } else if (survivors.length === 0) {
+                        updateData.status = "NO SURVIVORS - HOUSE WINS!";
+                    }
+
+                    stateRef.update(updateData);
+                });
+            });
         }
 
         function simulateBets() {
             tablesRef.once('value', snap => {
-                const tables = snap.val();
-                Object.keys(tables).forEach(id => {
-                    if (tables[id].status === 'active') {
-                        const randomBet = Math.random() > 0.5 ? 'up' : 'down';
-                        tablesRef.child(id).update({ currentBet: randomBet });
+                const ts = snap.val();
+                Object.keys(ts).forEach(id => {
+                    if (ts[id].status === 'active') {
+                        tablesRef.child(id).update({ currentBet: Math.random() > 0.5 ? 'up' : 'down' });
                     }
                 });
             });
         }
 
-        async function resolveRound() {
-            const endPrice = await fetchBTCPrice();
-            stateRef.once('value', snap => {
-                const s = snap.val();
-                const result = endPrice >= s.startPrice ? 'up' : 'down';
-                tablesRef.once('value', tSnap => {
-                    const ts = tSnap.val();
-                    let survivors = [];
-                    let potAdd = 0;
-                    Object.keys(ts).forEach(id => {
-                        if(ts[id].status === 'active') {
-                            if(ts[id].currentBet !== result) {
-                                tablesRef.child(id).update({status: 'out', currentBet: null});
-                                potAdd += 1200;
-                            } else {
-                                tablesRef.child(id).update({currentBet: null});
-                                survivors.push(id);
-                            }
-                        }
-                    });
-                    let upd = { status: `RESULT: ${result.toUpperCase()}`, jackpot: (s.jackpot || 0) + potAdd };
-                    if(survivors.length === 1) { upd.winnerFound = true; upd.winnerId = survivors[0]; }
-                    stateRef.update(upd);
-                });
-            });
-        }
-
-        function resetGame() {
-            stateRef.once('value', snap => {
-                const count = snap.val().tableCount || 25;
-                stateRef.update({ jackpot: 0, status: "READY", winnerFound: false });
-                tablesRef.set({});
-                for(let i=1; i<=count; i++) { tablesRef.child(i).set({ status: 'active', currentBet: null }); }
-            });
+        function resetTournament() {
+            if(confirm("Wipe all data and restart?")) setupTournament();
         }
     </script>
 </body>
