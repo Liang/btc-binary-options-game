@@ -15,17 +15,16 @@ const db = firebase.database();
 const stateRef = db.ref('gameState');
 const tablesRef = db.ref('tables');
 
-// Binance API is more reliable for GitHub Pages (No CORS issues)
-const BUY_IN = 1200;
-const PRICE_API = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT";
+// Using Coinbase API - More reliable for GitHub Pages
+const PRICE_API = "https://api.coinbase.com/v2/prices/BTC-USD/spot";
 
 async function fetchBTCPrice() {
     try {
         const response = await fetch(PRICE_API);
         const data = await response.json();
-        return parseFloat(data.price);
-    } catch (e) {
+        return parseFloat(data.data.amount);
+    } catch (e) { 
         console.error("Price Fetch Error:", e);
-        return null;
+        return null; 
     }
 }
