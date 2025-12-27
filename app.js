@@ -11,21 +11,19 @@ const firebaseConfig = {
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
-// State Nodes
 const stateRef = db.ref('gameState');
 const tablesRef = db.ref('tables');
 
 const BUY_IN = 1200;
 
-// Reliable Price Fetch (Coinbase avoids CORS issues on GitHub Pages)
 async function fetchBTCPrice() {
     try {
+        // Fetching from Coinbase for CORS stability on GitHub Pages
         const res = await fetch("https://api.coinbase.com/v2/prices/BTC-USD/spot");
         const data = await res.json();
         return parseFloat(data.data.amount);
     } catch (e) {
-        console.error("Price Fetch Error:", e);
+        console.error("Price Error:", e);
         return null;
     }
 }
