@@ -9,17 +9,28 @@
 <body>
     <div style="padding: 40px; text-align: center;">
         <h2 id="t-label">Table --</h2>
-        <button class="btn-gold" style="background:var(--up-green)" onclick="bet('up')">UP ▲</button>
-        <button class="btn-red" onclick="bet('down')">DOWN ▼</button>
+        <div id="table-status" style="margin-bottom: 20px; color: var(--primary-gold);">Checking Status...</div>
+        <div id="controls">
+            <button class="btn-gold" style="background:var(--up-green)" onclick="bet('up')">UP ▲</button>
+            <button class="btn-red" onclick="bet('down')">DOWN ▼</button>
+        </div>
         <div id="feedback" style="margin-top:20px; font-weight:bold;"></div>
     </div>
     <script src="app.js"></script>
     <script>
         const id = new URLSearchParams(window.location.search).get('id');
         document.getElementById('t-label').innerText = `Table ${id}`;
+        
+        tablesRef.child(id).on('value', snap => {
+            const t = snap.val();
+            if(!t) return;
+            document.getElementById('table-status').innerText = t.status === 'out' ? "❌ YOU ARE OUT" : "✅ ACTIVE";
+            document.getElementById('controls').style.display = t.status === 'out' ? "none" : "block";
+        });
+
         function bet(dir) {
             tablesRef.child(id).update({ currentBet: dir });
-            document.getElementById('feedback').innerText = `Locked: ${dir.toUpperCase()}`;
+            document.getElementById('feedback').innerText = `Bet Locked: ${dir.toUpperCase()}`;
         }
     </script>
 </body>
