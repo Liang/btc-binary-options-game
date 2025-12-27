@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print QR Codes - Table Distribution</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: white; color: black; }
+        .print-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; padding: 20px; }
+        .qr-item { border: 1px solid #ccc; padding: 20px; border-radius: 10px; page-break-inside: avoid; }
+        h2 { margin-bottom: 10px; }
+        .qr-box { display: flex; justify-content: center; }
+        button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; margin: 20px; }
+        @media print { button { display: none; } }
+    </style>
+</head>
+<body>
+    <h1>Table QR Codes (Total: 25)</h1>
+    <p>Print this page and cut into cards for each table.</p>
+    <button onclick="window.print()">Print Cards</button>
+
+    <div class="print-grid" id="qr-container"></div>
+
+    <script>
+        // REPLACE THIS with your actual GitHub Pages URL
+        const BASE_URL = "https://YOUR_USERNAME.github.io/btc-binrary-options-game/table.html";
+        const container = document.getElementById('qr-container');
+
+        for (let i = 1; i <= 25; i++) {
+            const tableUrl = `${BASE_URL}?id=${i}`;
+            
+            // Create UI elements
+            const div = document.createElement('div');
+            div.className = 'qr-item';
+            div.innerHTML = `<h2>TABLE ${i}</h2><div id="qr-${i}" class="qr-box"></div><p>Scan to Join</p>`;
+            container.appendChild(div);
+
+            // Generate QR Code
+            new QRCode(document.getElementById(`qr-${i}`), {
+                text: tableUrl,
+                width: 150,
+                height: 150
+            });
+        }
+    </script>
+</body>
+</html>
