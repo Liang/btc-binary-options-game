@@ -1,72 +1,43 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Admin - BTC Binary</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="admin">
-    <h1>Game Master</h1>
-    <button onclick="startBetting()">1. OPEN BETS (30s)</button>
-    <button onclick="resolveRound()">2. RESOLVE ROUND</button>
-    <button onclick="resetGame()" style="background:red">RESET ALL</button>
+async function resolveRound() {
+    const res = await fetch(BTSE_API);
+    const data = await res.json();
+    const endPrice = parseFloat(data[0].last);
+    
+    stateRef.once('value', snap => {
+        const startPrice = snap.val().startPrice;
+        const result = endPrice >= startPrice ? 'up' : 'down';
+        let addedToJackpot = 0;
 
-    <script src="app.js"></script>
-    <script>
-        let currentStartPrice = 0;
+        tablesRef.once('value', tSnap => {
+            const tables = tSnap.val() || {};
+            let survivors = [];
 
-        async function startBetting() {
-            const res = await fetch(BTSE_API);
-            const data = await res.json();
-            currentStartPrice = parseFloat(data[0].last);
-            
-            stateRef.update({ status: `BETTING OPEN (Start: $${currentStartPrice})`, timer: 30, startPrice: currentStartPrice });
-            
-            let timeLeft = 30;
-            const interval = setInterval(() => {
-                timeLeft--;
-                stateRef.update({ timer: timeLeft });
-                if(timeLeft <= 0) {
-                    clearInterval(interval);
-                    stateRef.update({ status: "BETS LOCKED", timer: 0 });
+            Object.keys(tables).forEach(id => {
+                if(tables[id].status === 'active') {
+                    if(tables[id].currentBet !== result) {
+                        tablesRef.child(id).update({ status: 'out', currentBet: null });
+                        addedToJackpot += 1200;
+                    } else {
+                        tablesRef.child(id).update({ currentBet: null });
+                        survivors.push(id);
+                    }
                 }
-            }, 1000);
-        }
-
-        async function resolveRound() {
-            const res = await fetch(BTSE_API);
-            const data = await res.json();
-            const endPrice = parseFloat(data[0].last);
-            
-            stateRef.once('value', snap => {
-                const startPrice = snap.val().startPrice;
-                const result = endPrice >= startPrice ? 'up' : 'down';
-                let addedToJackpot = 0;
-
-                tablesRef.once('value', tSnap => {
-                    const tables = tSnap.val();
-                    Object.keys(tables).forEach(id => {
-                        if(tables[id].status === 'active' && tables[id].currentBet !== result) {
-                            tablesRef.child(id).update({ status: 'out', currentBet: null });
-                            addedToJackpot += 1200;
-                        } else {
-                            tablesRef.child(id).update({ currentBet: null });
-                        }
-                    });
-                    
-                    stateRef.update({ 
-                        status: `RESULT: ${result.toUpperCase()}`,
-                        jackpot: (snap.val().jackpot || 0) + addedToJackpot 
-                    });
-                });
             });
-        }
+            
+            const newJackpot = (snap.val().jackpot || 0) + addedToJackpot;
+            const updateData = { 
+                status: `RESULT: ${result.toUpperCase()}`,
+                jackpot: newJackpot
+            };
 
-        function resetGame() {
-            stateRef.set({ jackpot: 0, status: "READY", timer: 0 });
-            for(let i=1; i<=25; i++) tablesRef.child(i).set({ status: 'active', currentBet: null });
-        }
-    </script>
-</body>
-</html>
+            // Trigger Winner if only 1 remains
+            if (survivors.length === 1) {
+                updateData.winnerFound = true;
+                updateData.winnerId = survivors[0];
+                updateData.status = "CHAMPION FOUND!";
+            }
+
+            stateRef.update(updateData);
+        });
+    });
+}
