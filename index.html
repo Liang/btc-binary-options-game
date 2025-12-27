@@ -8,18 +8,21 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
+    <audio id="sfx-jackpot" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
+    <audio id="sfx-win" src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3"></audio>
+
     <div id="winner-screen">
-        <h1 style="color: var(--primary-gold); font-size: 4rem;">🏆 CHAMPION FOUND!</h1>
-        <div id="winner-name" style="font-size: 10rem; color: white; text-shadow: 0 0 30px var(--primary-gold);">TABLE X</div>
+        <h1 style="color: var(--primary-gold); font-size: 4rem;">🏆 TOURNAMENT CHAMPION</h1>
+        <div id="winner-name" style="font-size: 10rem; color: white;">TABLE X</div>
     </div>
 
     <div class="header">
         <div class="stat-box" style="flex: 2;">
             <div class="stat-label">🔥 GRAND JACKPOT 🔥</div>
-            <div id="jackpot" class="stat-value" style="font-size: 4.5rem;">$0</div>
+            <div id="jackpot" class="stat-value" style="font-size: 5rem; text-shadow: 0 0 20px #f3ba2f;">$0</div>
         </div>
         <div style="text-align: center; flex: 1;">
-            <div id="status-msg" style="font-weight: bold; color: var(--text-muted);">READY</div>
+            <div id="status-msg" style="font-weight: bold; color: var(--text-muted); letter-spacing: 2px;">READY</div>
             <div id="timer" class="stat-value">--</div>
         </div>
         <div class="stat-box" style="flex: 1.5;">
@@ -28,30 +31,44 @@
         </div>
     </div>
 
-    <div class="summary-bar">
-        <div class="summary-item">ACTIVE: <span id="active-count" style="color: var(--up-green)">0</span></div>
-        <div class="summary-item">OUT: <span id="out-count" style="color: var(--down-red)">0</span></div>
-    </div>
-
     <div class="main-layout">
-        <div class="chart-container">
-            <div id="tradingview_btc" style="height: 100%;"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-            <script type="text/javascript">
-                new TradingView.widget({"autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "1", "theme": "dark", "container_id": "tradingview_btc", "hide_top_toolbar": true});
-            </script>
+        <div class="summary-panel">
+            <h3>TOURNAMENT STATUS</h3>
+            <div class="summary-stats">
+                <div class="summary-item">
+                    <span class="label">ACTIVE</span>
+                    <span id="active-count" class="val" style="color: var(--up-green)">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="label">ELIMINATED</span>
+                    <span id="out-count" class="val" style="color: var(--down-red)">0</span>
+                </div>
+            </div>
+            <div class="instruction">Tables that guess wrong are OUT. <br> $1,200 added per elimination!</div>
         </div>
-        
-        <div class="grid" id="table-grid"></div>
+
+        <div class="content-area">
+            <div class="chart-container">
+                <div id="tradingview_btc" style="height: 100%;"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+                <script type="text/javascript">
+                    new TradingView.widget({"autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "1", "theme": "dark", "container_id": "tradingview_btc", "hide_top_toolbar": true});
+                </script>
+            </div>
+            <div class="grid" id="table-grid"></div>
+        </div>
     </div>
 
     <script src="app.js"></script>
     <script>
+        let lastJackpot = 0;
+
         stateRef.on('value', snap => {
             const data = snap.val() || {};
             const count = data.tableCount || 25;
             const grid = document.getElementById('table-grid');
             
+            // Build Grid dynamically
             if (grid.children.length !== count) {
                 grid.innerHTML = '';
                 for(let i=1; i<=count; i++) { 
@@ -59,14 +76,22 @@
                 }
             }
             
-            document.getElementById('jackpot').innerText = `$${(data.jackpot || 0).toLocaleString()}`;
+            // Jackpot Logic & Sound
+            const currentJackpot = data.jackpot || 0;
+            if (currentJackpot > lastJackpot) {
+                document.getElementById('sfx-jackpot').play().catch(()=>{});
+                lastJackpot = currentJackpot;
+            }
+            document.getElementById('jackpot').innerText = `$${currentJackpot.toLocaleString()}`;
+
             document.getElementById('timer').innerText = data.timer || '--';
             document.getElementById('status-msg').innerText = data.status || "READY";
 
             if (data.winnerFound) {
+                document.getElementById('sfx-win').play().catch(()=>{});
                 document.getElementById('winner-screen').style.display = 'flex';
                 document.getElementById('winner-name').innerText = `TABLE ${data.winnerId}`;
-                confetti({ particleCount: 250, spread: 90, origin: { y: 0.6 } });
+                confetti({ particleCount: 300, spread: 100, origin: { y: 0.6 } });
             } else { document.getElementById('winner-screen').style.display = 'none'; }
         });
 
@@ -91,10 +116,17 @@
             document.getElementById('out-count').innerText = out;
         });
 
+        // Live Price Sync
         setInterval(async () => {
             const price = await fetchBTCPrice();
             if(price) document.getElementById('btc-price').innerText = `$${price.toFixed(2)}`;
         }, 2000);
+
+        // Resume Audio Context on first click (Required by Browsers)
+        window.addEventListener('click', () => {
+            document.getElementById('sfx-jackpot').load();
+            document.getElementById('sfx-win').load();
+        }, { once: true });
     </script>
 </body>
 </html>
