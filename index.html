@@ -1,100 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BTC Binary - Live Dashboard</title>
+    <title>BTC Binary Master Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
+    <div id="winner-screen">
+        <div class="win-text">WE HAVE A CHAMPION!</div>
+        <div id="winner-name" class="win-table">TABLE 5</div>
+    </div>
+
     <div class="header">
         <div class="stat-box">
-            <div class="stat-label">Grand Jackpot</div>
+            <div class="stat-label">TOTAL POOL</div>
             <div id="jackpot" class="stat-value">$0</div>
         </div>
-        <div style="text-align: center;">
-            <div id="status-msg" style="font-weight: bold; color: #fff;">READY TO PLAY</div>
-            <div id="timer" style="font-size: 3rem; color: var(--primary-gold);">00</div>
+        <div id="timer-box" style="text-align: center;">
+            <div id="status-msg">WAITING FOR ADMIN</div>
+            <div id="timer">--</div>
         </div>
         <div class="stat-box">
-            <div class="stat-label">Live BTC/USDT</div>
+            <div class="stat-label">LIVE BTC PRICE</div>
             <div id="btc-price" class="stat-value">------</div>
         </div>
     </div>
 
-    <div id="main-display">
-        <div class="chart-container" id="chart-section">
-            <div class="tradingview-widget-container">
-                <div id="tradingview_btc"></div>
-                <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-                <script type="text/javascript">
-                    new TradingView.widget({
-                        "autosize": true,
-                        "symbol": "BINANCE:BTCUSDT",
-                        "interval": "1", "timezone": "Etc/UTC", "theme": "dark", "style": "1",
-                        "locale": "en", "enable_publishing": false, "container_id": "tradingview_btc"
-                    });
-                </script>
-            </div>
-        </div>
-        
-        <div id="winner-screen" style="display: none; text-align: center; padding: 50px;">
-            <h1 class="win-text">CHAMPION DECLARED</h1>
-            <div id="winner-name" style="font-size: 6rem; color: white;">TABLE X</div>
-        </div>
+    <div class="chart-container">
+        <div id="tradingview_btc" style="height: 100%;"></div>
+        <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+        <script type="text/javascript">
+            new TradingView.widget({
+                "autosize": true, "symbol": "BINANCE:BTCUSDT",
+                "interval": "1", "theme": "dark", "style": "1",
+                "container_id": "tradingview_btc", "hide_top_toolbar": true
+            });
+        </script>
     </div>
 
     <div class="grid" id="table-grid"></div>
 
     <script src="app.js"></script>
     <script>
-        // Generate Table Grid
+        // Init 25 tables
         const grid = document.getElementById('table-grid');
         for(let i=1; i<=25; i++) {
-            grid.innerHTML += `<div id="card-${i}" class="card">TABLE ${i}<div id="bet-${i}" class="bet-indicator"></div></div>`;
+            grid.innerHTML += `<div id="card-${i}" class="card">TABLE ${i}<div id="bet-${i}"></div></div>`;
         }
 
-        // Winner Animation Function
-        function launchCelebration() {
-            const end = Date.now() + (15 * 1000);
-            const colors = ['#f3ba2f', '#ffffff', '#00c076'];
-
-            (function frame() {
-                confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
-                confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
-                if (Date.now() < end) requestAnimationFrame(frame);
-            }());
-        }
-
-        // Listen for Winner State
+        // Firebase Listeners
         stateRef.on('value', snap => {
             const data = snap.val() || {};
             document.getElementById('jackpot').innerText = `$${(data.jackpot || 0).toLocaleString()}`;
-            document.getElementById('timer').innerText = data.timer || '00';
+            document.getElementById('timer').innerText = data.timer || '--';
             document.getElementById('status-msg').innerText = data.status || "READY";
 
-            if (data.winnerFound && data.winnerId) {
-                document.getElementById('chart-section').style.display = 'none';
-                document.getElementById('winner-screen').style.display = 'block';
+            if (data.winnerFound) {
+                document.getElementById('winner-screen').style.display = 'flex';
                 document.getElementById('winner-name').innerText = `TABLE ${data.winnerId}`;
-                launchCelebration();
+                confetti({ particleCount: 200, spread: 70, origin: { y: 0.6 }, colors: ['#f3ba2f', '#ffffff'] });
             }
         });
 
-        // Update Table UI
         tablesRef.on('value', snap => {
             const tables = snap.val() || {};
             for(let i=1; i<=25; i++) {
                 const t = tables[i] || { status: 'active' };
                 const card = document.getElementById(`card-${i}`);
-                const indicator = document.getElementById(`bet-${i}`);
-                
                 card.className = `card ${t.status} ${t.currentBet ? 'betting' : ''}`;
-                indicator.innerText = t.currentBet ? t.currentBet.toUpperCase() : '';
-                indicator.className = `bet-indicator ${t.currentBet ? 'bet-' + t.currentBet : ''}`;
             }
         });
+
+        // Price Feed from BTSE
+        setInterval(async () => {
+            try {
+                const res = await fetch(BTSE_API);
+                const data = await res.json();
+                document.getElementById('btc-price').innerText = `$${parseFloat(data[0].last).toFixed(2)}`;
+            } catch(e) {}
+        }, 2000);
     </script>
 </body>
 </html>
