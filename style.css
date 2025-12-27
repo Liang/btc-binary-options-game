@@ -1,3 +1,4 @@
+/* style.css */
 :root {
     --bg-dark: #0b0e11;
     --card-bg: #1e2329;
@@ -8,92 +9,77 @@
     --text-muted: #848e9c;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
 body {
     background-color: var(--bg-dark);
     color: var(--text-main);
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    overflow: hidden; /* No scroll on projector */
 }
 
-/* Header & Stats */
+/* Header Section */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 40px;
+    padding: 1.5rem 3rem;
     background: #181a20;
-    border-bottom: 1px solid #333;
+    border-bottom: 2px solid var(--primary-gold);
 }
 
 .stat-box { text-align: center; }
-.stat-label { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
-.stat-value { font-size: 2.5rem; font-weight: bold; color: var(--primary-gold); font-family: monospace; }
+.stat-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; }
+.stat-value { font-size: 3rem; font-weight: 800; color: var(--primary-gold); font-family: monospace; }
 
-/* Grid Layout */
+/* Grid for 25 Tables */
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 15px;
-    padding: 30px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
-/* Table Cards */
 .card {
     background: var(--card-bg);
     border: 1px solid #333;
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 10px;
+    padding: 15px;
     text-align: center;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.card.active { border-top: 4px solid var(--primary-gold); }
-.card.out { opacity: 0.3; filter: grayscale(1); transform: scale(0.9); }
-.card.betting { animation: pulse 1.5s infinite; }
+.card.active { border-bottom: 3px solid var(--primary-gold); }
+.card.out { opacity: 0.15; transform: scale(0.85); filter: blur(1px); }
+.card.betting { animation: betGlow 1.5s infinite; }
 
-.bet-indicator {
-    margin-top: 10px;
-    font-weight: bold;
-    padding: 4px 8px;
-    border-radius: 4px;
+@keyframes betGlow {
+    0% { box-shadow: 0 0 5px rgba(243, 186, 47, 0.2); }
+    50% { box-shadow: 0 0 20px rgba(243, 186, 47, 0.6); }
+    100% { box-shadow: 0 0 5px rgba(243, 186, 47, 0.2); }
 }
-.bet-up { color: var(--up-green); border: 1px solid var(--up-green); }
-.bet-down { color: var(--down-red); border: 1px solid var(--down-red); }
 
 /* Chart Container */
 .chart-container {
     width: 95%;
-    height: 400px;
-    margin: 20px auto;
-    border-radius: 15px;
+    height: 450px;
+    margin: 15px auto;
+    border-radius: 12px;
     overflow: hidden;
-    border: 1px solid #333;
+    background: #16181e;
 }
 
-/* Admin & Buttons */
-.admin-wrap { max-width: 600px; margin: 50px auto; padding: 20px; }
-button {
-    width: 100%;
-    padding: 15px;
-    margin: 10px 0;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    font-size: 1.1rem;
-    cursor: pointer;
-    transition: transform 0.1s;
+/* Winner Overlay */
+#winner-screen {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(11, 14, 17, 0.95);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
 }
-button:active { transform: scale(0.98); }
-.btn-primary { background: var(--primary-gold); color: black; }
-.btn-danger { background: var(--down-red); color: white; }
 
-/* Animations */
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0px rgba(243, 186, 47, 0.4); }
-    70% { box-shadow: 0 0 0 15px rgba(243, 186, 47, 0); }
-    100% { box-shadow: 0 0 0 0px rgba(243, 186, 47, 0); }
-}
+.win-text { font-size: 4rem; color: var(--primary-gold); margin-bottom: 20px; }
+.win-table { font-size: 10rem; font-weight: 900; color: white; text-shadow: 0 0 50px var(--primary-gold); }
