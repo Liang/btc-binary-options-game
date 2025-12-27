@@ -6,19 +6,20 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
-<body style="padding: 20px;">
-    <div class="admin-card">
-        <h2>Tournament Controller</h2>
-        <div style="margin-bottom: 20px;">
-            <label>Total Tables:</label>
-            <input type="number" id="count-input" value="10" style="width: 50px;">
-            <button onclick="setupTournament()">Set Up Tournament</button>
+<body style="padding: 40px; background: #0b0e11;">
+    <div class="summary-card" style="max-width: 500px; margin: auto;">
+        <h2 style="color:var(--gold)">Tournament Control</h2>
+        
+        <div style="margin-bottom: 30px;">
+            <label>Table Count:</label>
+            <input type="number" id="count-input" value="10" style="width: 50px; background: #2b3139; color: white; border: 1px solid #444; padding: 5px;">
+            <button class="btn-gold" style="padding: 5px 15px;" onclick="setupTournament()">Set Up</button>
         </div>
 
-        <button class="btn-gold" onclick="startBetting()">1. START 60s BETTING</button>
-        <button class="btn-gold" style="background:#6f42c1; color:white;" onclick="fastForward()">🧪 SIMULATE & RESOLVE</button>
-        <button class="btn-gold" style="background:#28a745" onclick="resolveReal()">2. RESOLVE REAL PRICE</button>
-        <button class="btn-red" onclick="resetTournament()">RESET ALL</button>
+        <button class="btn-gold" style="width: 100%; margin-bottom: 10px;" onclick="startBetting()">1. START 60s BETTING</button>
+        <button class="btn-gold" style="width: 100%; margin-bottom: 10px; background:#6f42c1; color:white;" onclick="fastForward()">🧪 SIMULATE & RESOLVE</button>
+        <button class="btn-gold" style="width: 100%; margin-bottom: 10px; background:var(--green); color:black;" onclick="resolveReal()">2. RESOLVE REAL PRICE</button>
+        <button class="btn-gold" style="width: 100%; background:var(--red); color:white;" onclick="resetTournament()">⚠️ FULL HARD RESET</button>
     </div>
 
     <script src="app.js"></script>
@@ -27,25 +28,34 @@
 
         function setupTournament() {
             const count = parseInt(document.getElementById('count-input').value);
-            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", winnerFound: false });
-            tablesRef.set({});
-            for(let i=1; i<=count; i++) { tablesRef.child(i).set({ status: 'active', currentBet: null }); }
+            // Use .set to completely overwrite old data
+            stateRef.set({
+                tableCount: count,
+                jackpot: 0,
+                status: "READY",
+                winnerFound: false,
+                timer: "--",
+                startPrice: 0
+            });
+            
+            tablesRef.set({}); // Wipe tables
+            for(let i=1; i<=count; i++) {
+                tablesRef.child(i).set({ status: 'active', currentBet: "" });
+            }
         }
 
         async function startBetting() {
             const price = await fetchBTCPrice();
-            stateRef.update({ status: "BETTING OPEN", timer: 60, startPrice: price, winnerFound: false });
+            stateRef.update({ status: "BETS OPEN", timer: 60, startPrice: price, winnerFound: false });
             let t = 60;
             let itv = setInterval(() => {
-                t--; stateRef.update({ timer: t });
+                t--;
+                stateRef.update({ timer: t });
                 if(t <= 0) { clearInterval(itv); stateRef.update({ status: "BETS LOCKED" }); }
             }, 1000);
         }
 
-        async function fastForward() {
-            const res = Math.random() > 0.5 ? 'up' : 'down';
-            processTournamentRound(res);
-        }
+        function fastForward() { processTournamentRound(Math.random() > 0.5 ? 'up' : 'down'); }
 
         async function resolveReal() {
             const price = await fetchBTCPrice();
@@ -65,31 +75,33 @@
                         if(ts[id].status === 'active') {
                             let bet = ts[id].currentBet || (Math.random() > 0.5 ? 'up' : 'down');
                             if(bet !== result) {
-                                tablesRef.child(id).update({ status: 'out', currentBet: null });
+                                tablesRef.child(id).update({ status: 'out', currentBet: "" });
                             } else {
-                                tablesRef.child(id).update({ currentBet: null });
+                                tablesRef.child(id).update({ currentBet: "" });
                                 survivors.push(id);
                             }
                         }
                     });
 
-                    // Update Jackpot: (All Tables - Survivors) * 1200
                     let totalPrize = (s.tableCount - survivors.length) * BUY_IN;
-                    let winnerFound = survivors.length === 1;
-                    
-                    if(winnerFound) totalPrize = s.tableCount * BUY_IN; // Winner gets everything
+                    let win = survivors.length === 1;
+                    if(win) totalPrize = s.tableCount * BUY_IN;
 
                     stateRef.update({ 
                         status: `RESULT: ${result.toUpperCase()}`, 
                         jackpot: totalPrize,
-                        winnerFound: winnerFound,
-                        winnerId: winnerFound ? survivors[0] : null
+                        winnerFound: win,
+                        winnerId: win ? survivors[0] : null
                     });
                 });
             });
         }
 
-        function resetTournament() { if(confirm("Clear?")) setupTournament(); }
+        function resetTournament() {
+            if(confirm("THIS WILL WIPE EVERYTHING. ARE YOU SURE?")) {
+                setupTournament();
+            }
+        }
     </script>
 </body>
 </html>
