@@ -1,52 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ADMIN COMMAND</title>
+    <title>Tournament Admin</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body class="admin-body">
     <div class="admin-panel">
-        <h1>TOURNAMENT CONTROL</h1>
+        <h2 style="color:var(--gold)">MASTER CONTROL</h2>
         <div class="control-group">
-            <input type="number" id="init-count" value="10" placeholder="Table Count">
-            <button onclick="initGame()" class="btn-blue">INITIALIZE TOURNAMENT</button>
+            <input type="number" id="init-count" value="10">
+            <button onclick="initGame()" class="btn-blue">RESET & SETUP GAME</button>
         </div>
-        
-        <div class="action-buttons">
-            <button onclick="startRound()" class="btn-gold">1. START 60s BETTING</button>
-            <button onclick="resolveGame('up')" class="btn-green">SIMULATE WIN: UP</button>
-            <button onclick="resolveGame('down')" class="btn-red">SIMULATE WIN: DOWN</button>
-            <button onclick="autoResolve()" class="btn-white">RESOLVE VIA REAL PRICE</button>
+        <hr>
+        <button onclick="startRound()" class="btn-gold">1. START 60s BETTING</button>
+        <button onclick="autoResolve()" class="btn-green">2. RESOLVE (REAL PRICE)</button>
+        <hr>
+        <div style="display:flex; gap:10px;">
+            <button onclick="resolveGame('up')" style="background:#00c076; color:black">FORCE UP</button>
+            <button onclick="resolveGame('down')" style="background:#df294a; color:white">FORCE DOWN</button>
         </div>
     </div>
 
     <script src="app.js"></script>
     <script>
         function initGame() {
-            const count = document.getElementById('init-count').value;
-            stateRef.set({
-                tableCount: parseInt(count),
-                jackpot: 0,
-                status: "TOURNAMENT START",
-                winnerFound: false,
-                timer: "--"
-            });
+            const count = parseInt(document.getElementById('init-count').value);
+            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", winnerFound: false, timer: "--" });
             tablesRef.set({});
-            for(let i=1; i<=count; i++) {
-                tablesRef.child(i).set({ status: 'active', currentBet: "" });
-            }
+            for(let i=1; i<=count; i++) { tablesRef.child(i).set({ status: 'active', currentBet: "" }); }
+            alert("Game Reset Successfully");
         }
 
         async function startRound() {
             const price = await fetchBTCPrice();
-            stateRef.update({ status: "BETS OPENING", startPrice: price, timer: 60 });
+            stateRef.update({ status: "BETS OPEN", startPrice: price, timer: 60, winnerFound: false });
             let t = 60;
             let itv = setInterval(() => {
-                t--;
-                stateRef.update({ timer: t, status: "ACCEPTING BETS" });
-                if(t<=0) { clearInterval(itv); stateRef.update({ status: "BETS LOCKED", timer: "CLOSED" }); }
+                t--; stateRef.update({ timer: t });
+                if(t<=0) { clearInterval(itv); stateRef.update({ status: "BETS LOCKED" }); }
             }, 1000);
         }
 
@@ -64,12 +57,9 @@
                 tablesRef.once('value', tSnap => {
                     const tables = tSnap.val();
                     let survivors = [];
-
                     Object.keys(tables).forEach(id => {
                         if(tables[id].status === 'active') {
-                            // If table didn't bet, simulate one for stability during demo
-                            let bet = tables[id].currentBet || (Math.random() > 0.5 ? 'up' : 'down');
-                            if(bet !== winningDir) {
+                            if(tables[id].currentBet !== winningDir) {
                                 tablesRef.child(id).update({ status: 'out', currentBet: "" });
                             } else {
                                 tablesRef.child(id).update({ currentBet: "" });
@@ -77,17 +67,9 @@
                             }
                         }
                     });
-
-                    let win = (survivors.length === 1);
-                    // Jackpot = (Total Tables - Survivors) * 1200. If 1 survivor, they take all.
-                    let totalPool = win ? (game.tableCount * BUY_IN) : (game.tableCount - survivors.length) * BUY_IN;
-
-                    stateRef.update({
-                        status: `RESULT: ${winningDir.toUpperCase()}`,
-                        jackpot: totalPool,
-                        winnerFound: win,
-                        winnerId: win ? survivors[0] : null
-                    });
+                    const isWin = survivors.length === 1;
+                    const jackpot = isWin ? (game.tableCount * BUY_IN) : (game.tableCount - survivors.length) * BUY_IN;
+                    stateRef.update({ status: `RESULT: ${winningDir.toUpperCase()}`, jackpot: jackpot, winnerFound: isWin, winnerId: isWin ? survivors[0] : null });
                 });
             });
         }
