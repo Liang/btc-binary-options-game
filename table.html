@@ -1,0 +1,13 @@
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableID = urlParams.get('id');
+
+    function placeBet(dir) {
+        tablesRef.child(tableID).update({ currentBet: dir });
+        document.body.innerHTML = `<h1>Table ${tableID} Locked in ${dir.toUpperCase()}!</h1>`;
+    }
+</script>
+<body class="table-ui">
+    <button class="up" onclick="placeBet('up')">UP</button>
+    <button class="down" onclick="placeBet('down')">DOWN</button>
+</body>
