@@ -3,21 +3,26 @@
     --primary-gold: #f3ba2f; --up-green: #00c076; --down-red: #df294a;
     --text-main: #eaecef; --text-muted: #848e9c;
 }
-body { background: var(--bg-dark); color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-.header { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: #181a20; border-bottom: 2px solid var(--primary-gold); }
-.stat-box { text-align: center; }
-.stat-value { font-weight: 800; color: var(--primary-gold); font-family: 'Courier New', monospace; }
-.summary-bar { background: #1e2329; display: flex; justify-content: center; gap: 40px; padding: 10px; border-bottom: 1px solid #333; font-weight: bold; font-size: 1.2rem; }
+body { background: var(--bg-dark); color: var(--text-main); font-family: 'Segoe UI', sans-serif; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+.header { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: #181a20; border-bottom: 3px solid var(--primary-gold); }
+.stat-value { font-weight: 900; color: var(--primary-gold); font-family: 'Courier New', monospace; }
 
 .main-layout { display: flex; flex: 1; overflow: hidden; }
-.chart-container { flex: 2; border-right: 1px solid #333; }
-.grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding: 20px; overflow-y: auto; background: #0b0e11; }
 
-.card { background: var(--card-bg); border: 1px solid #333; border-radius: 6px; padding: 10px; text-align: center; font-weight: bold; }
-.card.active { border: 2px solid var(--primary-gold); box-shadow: inset 0 0 10px rgba(243, 186, 47, 0.2); }
-.card.out { opacity: 0.15; filter: grayscale(1); border: 1px dashed #555; }
-.bet-indicator { font-size: 0.8rem; margin-top: 5px; }
-.bet-up { color: var(--up-green); }
-.bet-down { color: var(--down-red); }
+/* Side Summary Panel */
+.summary-panel { width: 300px; background: #181a20; border-right: 1px solid #333; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.summary-stats { display: flex; flex-direction: column; gap: 15px; }
+.summary-item { display: flex; justify-content: space-between; font-size: 1.5rem; font-weight: bold; padding: 10px; background: #2b2f36; border-radius: 8px; }
+.instruction { color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #333; padding-top: 15px; line-height: 1.4; }
 
-#winner-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; }
+.content-area { flex: 1; display: flex; flex-direction: column; }
+.chart-container { height: 40%; border-bottom: 1px solid #333; }
+.grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 20px; overflow-y: auto; }
+
+.card { background: var(--card-bg); border: 1px solid #333; border-radius: 8px; padding: 12px; text-align: center; }
+.card.active { border: 2px solid var(--primary-gold); box-shadow: 0 0 10px rgba(243,186,47,0.3); }
+.card.out { opacity: 0.1; filter: grayscale(1); border: 1px dashed #555; }
+.card.betting { animation: pulse 1s infinite; }
+
+.bet-indicator { font-size: 0.7rem; font-weight: 800;
