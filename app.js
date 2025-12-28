@@ -18,12 +18,11 @@ const BUY_IN = 1200;
 
 async function fetchBTCPrice() {
     try {
-        // Fetching from Coinbase for CORS stability on GitHub Pages
-        const res = await fetch("https://api.coinbase.com/v2/prices/BTC-USD/spot");
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
         const data = await res.json();
-        return parseFloat(data.data.amount);
+        return parseFloat(data.price);
     } catch (e) {
-        console.error("Price Error:", e);
+        console.error("Binance Sync Error:", e);
         return null;
     }
 }
