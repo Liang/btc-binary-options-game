@@ -24,10 +24,10 @@
         </div>
         <div class="status-center">
             <div id="game-status">IDLE</div>
-            <div id="countdown">--</div>
+            <div id="countdown" class="timer-display">--</div>
         </div>
         <div class="price-ticker">
-            <span class="label">BTC / USDT (BINANCE)</span>
+            <span class="label">BTC / USDT (LIVE)</span>
             <div id="btc-price">------</div>
         </div>
     </header>
@@ -61,6 +61,14 @@
 
     <script src="app.js"></script>
     <script>
+        // Real-time Price Sync (Updates every 1s without refresh)
+        setInterval(async () => {
+            const p = await fetchBTCPrice();
+            if(p) {
+                document.getElementById('btc-price').innerText = p.toLocaleString(undefined, {minimumFractionDigits: 2});
+            }
+        }, 1000);
+
         stateRef.on('value', snap => {
             const s = snap.val() || {};
             document.getElementById('jackpot-value').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
@@ -92,11 +100,6 @@
             document.getElementById('count-active').innerText = active;
             document.getElementById('count-out').innerText = out;
         });
-
-        setInterval(async () => {
-            const p = await fetchBTCPrice();
-            if(p) document.getElementById('btc-price').innerText = p.toFixed(2);
-        }, 1000);
     </script>
 </body>
 </html>
