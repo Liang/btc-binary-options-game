@@ -1,109 +1,81 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin - BTC Tournament</title>
+    <title>Admin Control</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body class="admin-body">
     <div class="admin-panel">
-        <h2>ADMIN CONTROL</h2>
+        <h2 style="text-align:center; color:var(--gold);">ADMIN PANEL</h2>
         <div class="control-group">
-            <label>Table Count</label>
-            <input type="number" id="init-count" value="10">
+            <label>TABLE COUNT</label>
+            <input type="number" id="init-count" value="10" style="width:100%; padding:10px; background:#000; color:white; border:1px solid #444;">
         </div>
         <div class="control-group">
-            <label>Timer (Seconds)</label>
-            <input type="number" id="round-duration" value="60">
+            <label>TIMER (SEC)</label>
+            <input type="number" id="round-duration" value="60" style="width:100%; padding:10px; background:#000; color:white; border:1px solid #444;">
         </div>
-        <button onclick="if(confirm('Reset Tournament?')) initGame()" class="btn-blue">RESET & SETUP</button>
-        <hr>
-        <button onclick="startRound()" class="btn-gold">1. START BETTING WINDOW</button>
-        <button onclick="autoResolve()" class="btn-green" style="margin-top:10px;">2. RESOLVE BY CURRENT PRICE</button>
-        <hr>
-        <p style="font-size:10px; color:gray;">TESTING / MANUAL OVERRIDE</p>
-        <div style="display:flex; gap:10px;">
-            <button onclick="resolveGame('up')" style="background:var(--green); color:black">FORCE UP</button>
-            <button onclick="resolveGame('down')" style="background:var(--red); color:white">FORCE DOWN</button>
+        <button onclick="if(confirm('Reset game?')) initGame()" class="btn-blue" style="width:100%; padding:15px; margin-bottom:10px; background:#3498db; color:white;">RESET TOURNAMENT</button>
+        <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+        <button onclick="startRound()" class="btn-gold" style="width:100%; padding:15px; background:var(--gold); color:black;">1. START BETTING WINDOW</button>
+        <button onclick="autoResolve()" style="width:100%; padding:15px; margin-top:10px; background:var(--green); color:black;">2. RESOLVE BY PRICE</button>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button onclick="resolveGame('up')" style="flex:1; padding:10px; background:var(--green); color:black;">FORCE UP</button>
+            <button onclick="resolveGame('down')" style="flex:1; padding:10px; background:var(--red); color:white;">FORCE DOWN</button>
         </div>
     </div>
 
     <script src="app.js"></script>
     <script>
         let timerIdx = null;
-
         function initGame() {
-            if(timerIdx) clearInterval(timerIdx);
             const count = document.getElementById('init-count').value;
             stateRef.set({ tableCount: parseInt(count), jackpot: 0, status: "READY", startPrice: 0, timer: "--", winnerFound: false });
             tablesRef.set({});
             for(let i=1; i<=count; i++) tablesRef.child(i).set({ status: 'active', currentBet: "" });
         }
-
         async function startRound() {
-            if(timerIdx) clearInterval(timerIdx);
             const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
             const data = await res.json();
             const startPrice = parseFloat(data.price);
-            
             tablesRef.once('value', s => {
                 Object.keys(s.val()).forEach(id => {
                     if(s.val()[id].status === 'active') tablesRef.child(id).update({currentBet: ""});
                 });
             });
-
             let t = document.getElementById('round-duration').value;
             stateRef.update({ status: "BETS OPEN", timer: t, startPrice: startPrice, winnerFound: false });
-
+            if(timerIdx) clearInterval(timerIdx);
             timerIdx = setInterval(() => {
-                t--;
-                stateRef.update({ timer: t });
-                if(t <= 0) {
-                    clearInterval(timerIdx);
-                    stateRef.update({ status: "BETS LOCKED", timer: "LOCKED" });
-                }
+                t--; stateRef.update({ timer: t });
+                if(t <= 0) { clearInterval(timerIdx); stateRef.update({ status: "BETS LOCKED", timer: "LOCKED" }); }
             }, 1000);
         }
-
         async function autoResolve() {
             const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
             const data = await res.json();
-            const currentPrice = parseFloat(data.price);
             stateRef.once('value', s => {
                 const target = s.val().startPrice;
-                if(!target) return alert("Start a round first.");
-                resolveGame(currentPrice >= target ? 'up' : 'down');
+                resolveGame(parseFloat(data.price) >= target ? 'up' : 'down');
             });
         }
-
         function resolveGame(winDir) {
             tablesRef.once('value', snap => {
                 const tables = snap.val();
                 let survivors = [];
                 Object.keys(tables).forEach(id => {
                     if(tables[id].status === 'active') {
-                        if(tables[id].currentBet !== winDir) {
-                            tablesRef.child(id).update({ status: 'out' });
-                        } else {
-                            survivors.push(id);
-                        }
+                        if(tables[id].currentBet !== winDir) tablesRef.child(id).update({ status: 'out' });
+                        else survivors.push(id);
                     }
                 });
-                
                 stateRef.once('value', s => {
                     const totalTables = s.val().tableCount;
                     const isWinner = survivors.length === 1;
-                    // Logic Adjustment: Winner takes full pot (5 tables = 6000)
-                    const jackpot = isWinner ? (totalTables * BUY_IN) : (totalTables - survivors.length) * BUY_IN;
-
-                    stateRef.update({ 
-                        status: `RESULT: ${winDir.toUpperCase()}`, 
-                        jackpot: jackpot, 
-                        startPrice: 0,
-                        winnerFound: isWinner,
-                        winnerId: isWinner ? survivors[0] : null
-                    });
+                    const jackpot = isWinner ? (totalTables * 1200) : (totalTables - survivors.length) * 1200;
+                    stateRef.update({ status: `WINNER: ${winDir.toUpperCase()}`, jackpot: jackpot, startPrice: 0, winnerFound: isWinner, winnerId: isWinner ? survivors[0] : null });
                 });
             });
         }
