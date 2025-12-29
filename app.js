@@ -23,4 +23,5 @@ function initPriceTicker(callback) {
         const data = JSON.parse(event.data);
         callback(parseFloat(data.c));
     };
+    ws.onerror = () => console.log("WS Error - check internet");
 }
