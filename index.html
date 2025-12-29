@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BTC Tournament - Projector</title>
+    <title>BTC Tournament - Index</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -9,40 +9,32 @@
 </head>
 <body class="projector">
     <div id="winner-overlay" class="hidden">
-        <div class="winner-content">
+        <div class="winner-content" style="text-align:center;">
             <h1 class="glow-text">TOURNAMENT CHAMPION</h1>
-            <div id="winner-table-name">TABLE XX</div>
-            <div id="winner-final-prize">$0,000</div>
-            <button onclick="closeWinnerOverlay()" style="width:200px; margin-top:20px; cursor:pointer;">CLOSE</button>
+            <div id="winner-table-name" style="font-size: 6rem; font-weight: bold; margin: 20px 0;">TABLE XX</div>
+            <div id="winner-final-prize" style="font-size: 3rem; color: var(--gold);">$0,000</div>
+            <button onclick="closeWinnerOverlay()" style="width:200px; padding:15px; margin-top:20px; background:var(--gold); border-radius:8px;">CLOSE</button>
         </div>
     </div>
 
     <header class="game-header">
-        <div class="jackpot-container"><span class="label">PRIZE POOL</span><div id="jackpot-value">$0</div></div>
-        <div class="status-center">
-            <div id="game-status">IDLE</div>
-            <div id="countdown" class="timer-display">--</div>
-            <div id="target-ui" class="hidden">TARGET: $<span id="target-val">0</span></div>
+        <div class="jackpot-container"><span class="label">PRIZE POOL</span><div id="jackpot-value" style="font-size:24px; font-weight:bold;">$0</div></div>
+        <div class="status-center" style="text-align:center;">
+            <div id="game-status" style="color:var(--gray);">IDLE</div>
+            <div id="countdown" class="timer-display" style="font-size:40px; color:var(--gold);">--</div>
+            <div id="target-ui" class="hidden" style="font-weight:bold;">TARGET: $<span id="target-val">0</span></div>
         </div>
-        <div class="price-ticker"><span class="label">BTC / USDT</span><div id="btc-price">------</div></div>
+        <div class="price-ticker" style="text-align:right;"><span class="label">BTC / USDT</span><div id="btc-price" style="font-size:24px; font-weight:bold;">------</div></div>
     </header>
 
     <main class="game-container">
         <aside class="stats-sidebar">
-            <div class="stat-card">
-                <span class="label">ACTIVE</span>
-                <span id="count-active" class="val-green">0</span>
-            </div>
-            <div class="stat-card">
-                <span class="label">ELIMINATED</span>
-                <span id="count-out" class="val-red">0</span>
-            </div>
+            <div class="stat-card"><span class="label">ACTIVE</span><span id="count-active" class="val-green">0</span></div>
+            <div class="stat-card"><span class="label">ELIMINATED</span><span id="count-out" class="val-red">0</span></div>
         </aside>
         <section class="action-zone">
-            <div class="chart-box" style="position:relative;">
-                <div id="betting-line" class="hidden">
-                    <span class="line-tag">TARGET PRICE</span>
-                </div>
+            <div class="chart-box">
+                <div id="betting-line" class="hidden"><span class="line-tag">TARGET</span></div>
                 <div id="tv-chart" style="height:100%"></div>
                 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                 <script>
@@ -55,28 +47,12 @@
 
     <script src="app.js"></script>
     <script>
-        let isOverlayManuallyClosed = false;
-
-        initPriceTicker(p => { 
-            document.getElementById('btc-price').innerText = p.toFixed(2); 
-            updateChartLine(p);
-        });
-
-        function updateChartLine(livePrice) {
-            stateRef.once('value', snap => {
-                const s = snap.val();
-                const line = document.getElementById('betting-line');
-                if (s && s.startPrice > 0 && (s.status === "BETS OPEN" || s.status === "BETS LOCKED")) {
-                    line.classList.remove('hidden');
-                } else {
-                    line.classList.add('hidden');
-                }
-            });
-        }
+        let manualClose = false;
+        initPriceTicker(p => { document.getElementById('btc-price').innerText = p.toFixed(2); });
 
         function closeWinnerOverlay() {
             document.getElementById('winner-overlay').classList.add('hidden');
-            isOverlayManuallyClosed = true;
+            manualClose = true;
         }
 
         stateRef.on('value', snap => {
@@ -85,20 +61,25 @@
             document.getElementById('game-status').innerText = s.status;
             document.getElementById('countdown').innerText = s.timer || "--";
             
-            if(s.winnerFound && !isOverlayManuallyClosed) {
+            const line = document.getElementById('betting-line');
+            if(s.startPrice > 0 && (s.status === "BETS OPEN" || s.status === "BETS LOCKED")) {
+                line.classList.remove('hidden');
+                document.getElementById('target-ui').classList.remove('hidden');
+                document.getElementById('target-val').innerText = s.startPrice.toFixed(2);
+            } else {
+                line.classList.add('hidden');
+                document.getElementById('target-ui').classList.add('hidden');
+            }
+
+            if(s.winnerFound && !manualClose) {
                 document.getElementById('winner-overlay').classList.remove('hidden');
                 document.getElementById('winner-table-name').innerText = `TABLE ${s.winnerId}`;
                 document.getElementById('winner-final-prize').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
                 confetti({ particleCount: 400, spread: 100, origin: { y: 0.6 } });
             } else if (!s.winnerFound) {
-                isOverlayManuallyClosed = false;
+                manualClose = false;
                 document.getElementById('winner-overlay').classList.add('hidden');
             }
-
-            if(s.startPrice > 0) {
-                document.getElementById('target-ui').classList.remove('hidden');
-                document.getElementById('target-val').innerText = s.startPrice.toFixed(2);
-            } else { document.getElementById('target-ui').classList.add('hidden'); }
         });
 
         tablesRef.on('value', snap => {
@@ -111,7 +92,7 @@
                 const t = data[id];
                 const card = document.createElement('div');
                 card.className = `table-card ${t.status} bet-${t.currentBet || 'none'}`;
-                card.innerHTML = `<div class="table-num">T-${id}</div><div class="bet-indicator">${t.currentBet ? t.currentBet.toUpperCase() : '-'}</div>`;
+                card.innerHTML = `<div class="table-num">T-${id}</div><div class="bet-indicator" style="font-weight:bold;">${t.currentBet ? t.currentBet.toUpperCase() : '-'}</div>`;
                 grid.appendChild(card);
                 t.status === 'active' ? active++ : out++;
             });
