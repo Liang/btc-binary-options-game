@@ -16,11 +16,11 @@ const tablesRef = db.ref('tables');
 
 const BUY_IN = 1200;
 
-// Instant Price Logic
+// Instant Price Feed
 function initPriceTicker(callback) {
     const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@ticker");
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        callback(parseFloat(data.c)); // 'c' is the current price
+        callback(parseFloat(data.c));
     };
 }

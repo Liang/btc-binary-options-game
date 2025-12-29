@@ -9,64 +9,54 @@
 </head>
 <body class="mobile-body">
     <div class="mobile-header">
-        <h2 id="table-label">TABLE --</h2>
-        <div id="live-btc" style="color:var(--gold); font-family:monospace;">$---</div>
+        <h2 id="table-label">T--</h2>
+        <div class="price-box">
+            <div id="live-btc" style="color:var(--gold); font-size: 20px;">$---</div>
+            <div id="target-btc" style="font-size: 12px; color: gray;">Target: $---</div>
+        </div>
     </div>
 
     <div id="bet-ui">
-        <div id="selection-display" style="padding:10px; margin-bottom:15px; border-radius:8px; background:#181a20; font-size:14px;">
-            YOUR SELECTION: <span id="current-pick" style="font-weight:bold; color:var(--gold)">NONE</span>
-        </div>
-
+        <div id="trend-indicator" style="font-size: 24px; margin: 20px 0; font-weight: bold;">--</div>
         <div class="bet-buttons">
             <button id="btn-up" class="bet-btn up" onclick="placeBet('up')">UP</button>
             <button id="btn-down" class="bet-btn down" onclick="placeBet('down')">DOWN</button>
         </div>
-        <p id="status-text" style="font-weight:bold; color:var(--gold)">--</p>
     </div>
 
     <script src="app.js"></script>
     <script>
         const tid = new URLSearchParams(window.location.search).get('id');
-        document.getElementById('table-label').innerText = `TABLE ${tid}`;
+        let targetPrice = 0;
 
         initPriceTicker((price) => {
             document.getElementById('live-btc').innerText = `$${price.toFixed(2)}`;
+            if (targetPrice > 0) {
+                const diff = price - targetPrice;
+                const trend = document.getElementById('trend-indicator');
+                trend.innerText = diff >= 0 ? "▲ ABOVE" : "▼ BELOW";
+                trend.style.color = diff >= 0 ? "var(--green)" : "var(--red)";
+            }
         });
 
         stateRef.on('value', snap => {
             const s = snap.val();
+            targetPrice = s.startPrice || 0;
+            document.getElementById('target-btc').innerText = `Target: $${targetPrice.toFixed(2)}`;
+            
             const btns = document.querySelectorAll('.bet-btn');
-            const canBet = (s.status === "BETS OPEN");
-            btns.forEach(b => b.disabled = !canBet);
-            document.getElementById('status-text').innerText = s.status;
+            btns.forEach(b => b.disabled = (s.status !== "BETS OPEN"));
         });
 
         tablesRef.child(tid).on('value', snap => {
             const t = snap.val();
             if(!t) return;
-            
-            // Visual Update for chosen direction
-            const pickDisplay = document.getElementById('current-pick');
             document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
-            
-            if(t.currentBet) {
-                document.getElementById(`btn-${t.currentBet}`).classList.add('selected');
-                pickDisplay.innerText = t.currentBet.toUpperCase();
-                pickDisplay.style.color = t.currentBet === 'up' ? 'var(--green)' : 'var(--red)';
-            } else {
-                pickDisplay.innerText = "NONE";
-                pickDisplay.style.color = "var(--gold)";
-            }
-
-            if(t.status === 'out') {
-                document.getElementById('bet-ui').innerHTML = "<h1 style='color:red; margin-top:50px;'>ELIMINATED</h1>";
-            }
+            if(t.currentBet) document.getElementById(`btn-${t.currentBet}`).classList.add('selected');
+            if(t.status === 'out') document.body.innerHTML = "<h1>ELIMINATED</h1>";
         });
 
-        function placeBet(dir) { 
-            tablesRef.child(tid).update({ currentBet: dir }); 
-        }
+        function placeBet(dir) { tablesRef.child(tid).update({ currentBet: dir }); }
     </script>
 </body>
 </html>
