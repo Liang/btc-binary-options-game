@@ -1,49 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>BTC Tournament - Projector</title>
+    <title>BTC Tournament - War Room</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body class="projector">
+    <div id="winner-overlay" class="hidden">
+        <div class="winner-content">
+            <h1 class="glow-text">TOURNAMENT CHAMPION</h1>
+            <div id="winner-table-name">TABLE XX</div>
+            <div id="winner-final-prize">$0,000</div>
+            <button onclick="location.reload()" style="width:200px; margin-top:20px;">CLOSE</button>
+        </div>
+    </div>
+
     <header class="game-header">
-        <div class="jackpot-container">
-            <span class="label">TOTAL PRIZE POOL</span>
-            <div id="jackpot-value">$0</div>
-        </div>
+        <div class="jackpot-container"><span class="label">PRIZE POOL</span><div id="jackpot-value">$0</div></div>
         <div class="status-center">
-            <div id="game-status">INITIALIZING</div>
+            <div id="game-status">IDLE</div>
             <div id="countdown" class="timer-display">--</div>
-            <div id="target-ui" class="hidden" style="color:var(--gold); font-weight:bold;">
-                TARGET: $<span id="target-val">0</span>
-            </div>
+            <div id="target-ui" class="hidden">TARGET: $<span id="target-val">0</span></div>
         </div>
-        <div class="price-ticker">
-            <span class="label">BTC / USDT (LIVE)</span>
-            <div id="btc-price">0.00</div>
-        </div>
+        <div class="price-ticker"><span class="label">BTC / USDT</span><div id="btc-price">------</div></div>
     </header>
 
     <main class="game-container">
+        <aside class="stats-sidebar">
+            <div class="stat-card">
+                <span class="label">ACTIVE</span>
+                <span id="count-active" class="val-green">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="label">ELIMINATED</span>
+                <span id="count-out" class="val-red">0</span>
+            </div>
+        </aside>
         <section class="action-zone">
             <div class="chart-box">
                 <div id="tv-chart" style="height:100%"></div>
                 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                 <script>
-                    new TradingView.widget({
-                        "autosize": true,
-                        "symbol": "BINANCE:BTCUSDT",
-                        "interval": "1",
-                        "theme": "dark",
-                        "style": "1",
-                        "container_id": "tv-chart",
-                        "hide_top_toolbar": true,
-                        "enable_publishing": false,
-                        "save_image": false
-                    });
+                    new TradingView.widget({"autosize":true,"symbol":"BINANCE:BTCUSDT","interval":"1","theme":"dark","style":"1","container_id":"tv-chart","hide_top_toolbar":true});
                 </script>
             </div>
             <div id="table-grid" class="grid"></div>
@@ -52,39 +52,45 @@
 
     <script src="app.js"></script>
     <script>
-        initPriceTicker(p => {
-            document.getElementById('btc-price').innerText = p.toFixed(2);
-        });
+        initPriceTicker(p => { document.getElementById('btc-price').innerText = p.toFixed(2); });
 
         stateRef.on('value', snap => {
             const s = snap.val() || {};
             document.getElementById('jackpot-value').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
-            document.getElementById('game-status').innerText = s.status || "IDLE";
+            document.getElementById('game-status').innerText = s.status;
             document.getElementById('countdown').innerText = s.timer || "--";
             
+            if(s.winnerFound) {
+                document.getElementById('winner-overlay').classList.remove('hidden');
+                document.getElementById('winner-table-name').innerText = `TABLE ${s.winnerId}`;
+                document.getElementById('winner-final-prize').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
+                confetti({ particleCount: 400, spread: 100, origin: { y: 0.6 } });
+            } else {
+                document.getElementById('winner-overlay').classList.add('hidden');
+            }
+
             if(s.startPrice > 0) {
                 document.getElementById('target-ui').classList.remove('hidden');
-                document.getElementById('target-val').innerText = s.startPrice.toLocaleString(undefined, {minimumFractionDigits: 2});
-            } else {
-                document.getElementById('target-ui').classList.add('hidden');
-            }
+                document.getElementById('target-val').innerText = s.startPrice.toFixed(2);
+            } else { document.getElementById('target-ui').classList.add('hidden'); }
         });
 
         tablesRef.on('value', snap => {
             const data = snap.val();
             const grid = document.getElementById('table-grid');
+            let active = 0, out = 0;
             grid.innerHTML = ''; 
             if(!data) return;
             Object.keys(data).sort((a,b) => a-b).forEach(id => {
                 const t = data[id];
                 const card = document.createElement('div');
                 card.className = `table-card ${t.status} bet-${t.currentBet || 'none'}`;
-                card.innerHTML = `
-                    <div class="table-num">T-${id}</div>
-                    <div class="bet-indicator">${t.currentBet ? t.currentBet.toUpperCase() : '-'}</div>
-                `;
+                card.innerHTML = `<div class="table-num">T-${id}</div><div class="bet-indicator">${t.currentBet ? t.currentBet.toUpperCase() : '-'}</div>`;
                 grid.appendChild(card);
+                t.status === 'active' ? active++ : out++;
             });
+            document.getElementById('count-active').innerText = active;
+            document.getElementById('count-out').innerText = out;
         });
     </script>
 </body>
