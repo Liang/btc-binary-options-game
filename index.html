@@ -1,20 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>BTC Tournament - War Room</title>
+    <meta charset="UTF-8">
+    <title>BTC Tournament - Projector</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body class="projector">
     <header class="game-header">
-        <div class="jackpot-container"><span class="label">PRIZE POOL</span><div id="jackpot-value">$0</div></div>
-        <div class="status-center">
-            <div id="game-status">IDLE</div>
-            <div id="countdown" class="timer-display">--</div>
-            <div id="target-ui" class="hidden">TARGET: <span id="target-val">0</span></div>
+        <div class="jackpot-container">
+            <span class="label">TOTAL PRIZE POOL</span>
+            <div id="jackpot-value">$0</div>
         </div>
-        <div class="price-ticker"><span class="label">BTC / USDT</span><div id="btc-price">------</div></div>
+        <div class="status-center">
+            <div id="game-status">INITIALIZING</div>
+            <div id="countdown" class="timer-display">--</div>
+            <div id="target-ui" class="hidden" style="color:var(--gold); font-weight:bold;">
+                TARGET: $<span id="target-val">0</span>
+            </div>
+        </div>
+        <div class="price-ticker">
+            <span class="label">BTC / USDT (LIVE)</span>
+            <div id="btc-price">0.00</div>
+        </div>
     </header>
 
     <main class="game-container">
@@ -23,7 +33,17 @@
                 <div id="tv-chart" style="height:100%"></div>
                 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                 <script>
-                    new TradingView.widget({"autosize":true,"symbol":"BINANCE:BTCUSDT","interval":"1","theme":"dark","style":"1","container_id":"tv-chart","hide_top_toolbar":true});
+                    new TradingView.widget({
+                        "autosize": true,
+                        "symbol": "BINANCE:BTCUSDT",
+                        "interval": "1",
+                        "theme": "dark",
+                        "style": "1",
+                        "container_id": "tv-chart",
+                        "hide_top_toolbar": true,
+                        "enable_publishing": false,
+                        "save_image": false
+                    });
                 </script>
             </div>
             <div id="table-grid" class="grid"></div>
@@ -32,16 +52,21 @@
 
     <script src="app.js"></script>
     <script>
-        initPriceTicker(p => { document.getElementById('btc-price').innerText = p.toFixed(2); });
+        initPriceTicker(p => {
+            document.getElementById('btc-price').innerText = p.toFixed(2);
+        });
 
         stateRef.on('value', snap => {
             const s = snap.val() || {};
             document.getElementById('jackpot-value').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
-            document.getElementById('game-status').innerText = s.status;
+            document.getElementById('game-status').innerText = s.status || "IDLE";
             document.getElementById('countdown').innerText = s.timer || "--";
-            if(s.startPrice) {
+            
+            if(s.startPrice > 0) {
                 document.getElementById('target-ui').classList.remove('hidden');
-                document.getElementById('target-val').innerText = s.startPrice.toFixed(2);
+                document.getElementById('target-val').innerText = s.startPrice.toLocaleString(undefined, {minimumFractionDigits: 2});
+            } else {
+                document.getElementById('target-ui').classList.add('hidden');
             }
         });
 
@@ -53,10 +78,11 @@
             Object.keys(data).sort((a,b) => a-b).forEach(id => {
                 const t = data[id];
                 const card = document.createElement('div');
-                // Added distinct classes for betting visibility
                 card.className = `table-card ${t.status} bet-${t.currentBet || 'none'}`;
-                card.innerHTML = `<div class="table-num">T-${id}</div>
-                                  <div class="bet-indicator">${t.currentBet ? t.currentBet.toUpperCase() : '-'}</div>`;
+                card.innerHTML = `
+                    <div class="table-num">T-${id}</div>
+                    <div class="bet-indicator">${t.currentBet ? t.currentBet.toUpperCase() : '-'}</div>
+                `;
                 grid.appendChild(card);
             });
         });
