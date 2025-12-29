@@ -9,15 +9,22 @@
 <body class="admin-body">
     <div class="admin-panel">
         <h2>ADMIN CONTROL</h2>
-        <input type="number" id="init-count" value="10" placeholder="Table Count">
-        <input type="number" id="round-duration" value="60" placeholder="Timer (sec)">
-        <button onclick="if(confirm('Reset Game?')) initGame()" class="btn-blue">RESET TOURNAMENT</button>
+        <div class="control-group">
+            <label>Table Count</label>
+            <input type="number" id="init-count" value="10">
+        </div>
+        <div class="control-group">
+            <label>Timer (Seconds)</label>
+            <input type="number" id="round-duration" value="60">
+        </div>
+        <button onclick="if(confirm('Reset all table data and start fresh?')) initGame()" class="btn-blue">RESET TOURNAMENT</button>
         <hr>
-        <button onclick="startRound()" class="btn-gold">1. START BETTING</button>
+        <button onclick="startRound()" class="btn-gold">1. START BETTING WINDOW</button>
         <hr>
+        <p>RESOLVE BASED ON WINNING DIRECTION:</p>
         <div style="display:flex; gap:10px;">
-            <button onclick="resolveGame('up')" class="btn-green">FORCE WIN: UP</button>
-            <button onclick="resolveGame('down')" style="background:var(--red); color:white">FORCE WIN: DOWN</button>
+            <button onclick="resolveGame('up')" class="btn-green">WIN: UP</button>
+            <button onclick="resolveGame('down')" style="background:var(--red); color:white">WIN: DOWN</button>
         </div>
     </div>
 
@@ -26,10 +33,13 @@
         let timerIdx = null;
 
         function initGame() {
+            if(timerIdx) clearInterval(timerIdx);
             const count = document.getElementById('init-count').value;
-            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", startPrice: 0 });
+            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", startPrice: 0, timer: "--" });
             tablesRef.set({});
-            for(let i=1; i<=count; i++) tablesRef.child(i).set({ status: 'active', currentBet: "" });
+            for(let i=1; i<=count; i++) {
+                tablesRef.child(i).set({ status: 'active', currentBet: "" });
+            }
         }
 
         async function startRound() {
@@ -38,10 +48,12 @@
             const data = await res.json();
             const startPrice = parseFloat(data.price);
             
-            // Clear bets for new round
             tablesRef.once('value', s => {
-                Object.keys(s.val()).forEach(id => {
-                    if(s.val()[id].status === 'active') tablesRef.child(id).update({currentBet: ""});
+                const tables = s.val();
+                Object.keys(tables).forEach(id => {
+                    if(tables[id].status === 'active') {
+                        tablesRef.child(id).update({currentBet: ""});
+                    }
                 });
             });
 
@@ -53,7 +65,7 @@
                 stateRef.update({ timer: t });
                 if(t <= 0) {
                     clearInterval(timerIdx);
-                    stateRef.update({ status: "BETS LOCKED" });
+                    stateRef.update({ status: "BETS LOCKED", timer: "LOCKED" });
                 }
             }, 1000);
         }
@@ -74,7 +86,7 @@
                 stateRef.once('value', s => {
                     const count = s.val().tableCount;
                     const jackpot = survivors.length === 1 ? (count * BUY_IN) : (count - survivors.length) * BUY_IN;
-                    stateRef.update({ status: `WINNER: ${winDir.toUpperCase()}`, jackpot: jackpot });
+                    stateRef.update({ status: `RESULT: ${winDir.toUpperCase()}`, jackpot: jackpot, startPrice: 0 });
                 });
             });
         }
