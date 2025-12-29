@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BTC Tournament - War Room</title>
+    <title>BTC Tournament - Projector</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -13,7 +13,7 @@
             <h1 class="glow-text">TOURNAMENT CHAMPION</h1>
             <div id="winner-table-name">TABLE XX</div>
             <div id="winner-final-prize">$0,000</div>
-            <button onclick="location.reload()" style="width:200px; margin-top:20px;">CLOSE</button>
+            <button onclick="closeWinnerOverlay()" style="width:200px; margin-top:20px; cursor:pointer;">CLOSE</button>
         </div>
     </div>
 
@@ -39,7 +39,10 @@
             </div>
         </aside>
         <section class="action-zone">
-            <div class="chart-box">
+            <div class="chart-box" style="position:relative;">
+                <div id="betting-line" class="hidden">
+                    <span class="line-tag">TARGET PRICE</span>
+                </div>
                 <div id="tv-chart" style="height:100%"></div>
                 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                 <script>
@@ -52,7 +55,29 @@
 
     <script src="app.js"></script>
     <script>
-        initPriceTicker(p => { document.getElementById('btc-price').innerText = p.toFixed(2); });
+        let isOverlayManuallyClosed = false;
+
+        initPriceTicker(p => { 
+            document.getElementById('btc-price').innerText = p.toFixed(2); 
+            updateChartLine(p);
+        });
+
+        function updateChartLine(livePrice) {
+            stateRef.once('value', snap => {
+                const s = snap.val();
+                const line = document.getElementById('betting-line');
+                if (s && s.startPrice > 0 && (s.status === "BETS OPEN" || s.status === "BETS LOCKED")) {
+                    line.classList.remove('hidden');
+                } else {
+                    line.classList.add('hidden');
+                }
+            });
+        }
+
+        function closeWinnerOverlay() {
+            document.getElementById('winner-overlay').classList.add('hidden');
+            isOverlayManuallyClosed = true;
+        }
 
         stateRef.on('value', snap => {
             const s = snap.val() || {};
@@ -60,12 +85,13 @@
             document.getElementById('game-status').innerText = s.status;
             document.getElementById('countdown').innerText = s.timer || "--";
             
-            if(s.winnerFound) {
+            if(s.winnerFound && !isOverlayManuallyClosed) {
                 document.getElementById('winner-overlay').classList.remove('hidden');
                 document.getElementById('winner-table-name').innerText = `TABLE ${s.winnerId}`;
                 document.getElementById('winner-final-prize').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
                 confetti({ particleCount: 400, spread: 100, origin: { y: 0.6 } });
-            } else {
+            } else if (!s.winnerFound) {
+                isOverlayManuallyClosed = false;
                 document.getElementById('winner-overlay').classList.add('hidden');
             }
 

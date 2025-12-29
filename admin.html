@@ -21,9 +21,6 @@
         <hr>
         <button onclick="startRound()" class="btn-gold">1. START BETTING WINDOW</button>
         <button onclick="autoResolve()" class="btn-green" style="margin-top:10px;">2. RESOLVE BY CURRENT PRICE</button>
-        
-        <div id="admin-status" style="margin-top:15px; font-size:12px; color:var(--gold); text-align:center;"></div>
-        
         <hr>
         <p style="font-size:10px; color:gray;">TESTING / MANUAL OVERRIDE</p>
         <div style="display:flex; gap:10px;">
@@ -39,7 +36,7 @@
         function initGame() {
             if(timerIdx) clearInterval(timerIdx);
             const count = document.getElementById('init-count').value;
-            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", startPrice: 0, timer: "--", winnerFound: false });
+            stateRef.set({ tableCount: parseInt(count), jackpot: 0, status: "READY", startPrice: 0, timer: "--", winnerFound: false });
             tablesRef.set({});
             for(let i=1; i<=count; i++) tablesRef.child(i).set({ status: 'active', currentBet: "" });
         }
@@ -73,12 +70,10 @@
             const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
             const data = await res.json();
             const currentPrice = parseFloat(data.price);
-            
             stateRef.once('value', s => {
                 const target = s.val().startPrice;
-                if(!target) return alert("No start price found. Start a round first.");
-                const winDir = currentPrice >= target ? 'up' : 'down';
-                resolveGame(winDir);
+                if(!target) return alert("Start a round first.");
+                resolveGame(currentPrice >= target ? 'up' : 'down');
             });
         }
 
@@ -97,9 +92,10 @@
                 });
                 
                 stateRef.once('value', s => {
-                    const count = s.val().tableCount;
+                    const totalTables = s.val().tableCount;
                     const isWinner = survivors.length === 1;
-                    const jackpot = (count - survivors.length) * BUY_IN;
+                    // Logic Adjustment: Winner takes full pot (5 tables = 6000)
+                    const jackpot = isWinner ? (totalTables * BUY_IN) : (totalTables - survivors.length) * BUY_IN;
 
                     stateRef.update({ 
                         status: `RESULT: ${winDir.toUpperCase()}`, 

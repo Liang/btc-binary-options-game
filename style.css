@@ -1,4 +1,3 @@
-/* --- Global Variables & Reset --- */
 :root {
     --gold: #f3ba2f;
     --dark: #0b0e11;
@@ -6,247 +5,103 @@
     --green: #00c076;
     --red: #df294a;
     --gray: #848e9c;
-    --bg-black: #000000;
 }
 
 body {
     background-color: var(--dark);
     color: white;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: sans-serif;
     margin: 0;
-    overflow-x: hidden;
 }
 
-/* --- Shared Header Logic --- */
+/* Header & Container Spacing Fix */
 .game-header {
     display: flex;
     justify-content: space-between;
-    padding: 10px 20px;
+    padding: 15px 30px;
     background: #181a20;
     border-bottom: 2px solid var(--gold);
     align-items: center;
-    height: 70px;
-    box-sizing: border-box;
-}
-
-.label {
-    font-size: 10px;
-    color: var(--gray);
-    display: block;
-    text-transform: uppercase;
-}
-
-.timer-display {
-    font-size: 32px;
-    font-family: monospace;
-    color: var(--gold);
-    font-weight: bold;
-}
-
-/* --- Projector (Index) Layout --- */
-.projector {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+    position: relative;
+    z-index: 10;
 }
 
 .game-container {
     display: flex;
-    flex: 1;
-    overflow: hidden;
+    height: calc(100vh - 100px);
+    margin-top: 20px; /* Space between header and content */
 }
 
+/* Target Price Line on Chart */
+#betting-line {
+    position: absolute;
+    top: 50%; /* Adjusted visually to middle of chart */
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--gold);
+    z-index: 5;
+    box-shadow: 0 0 10px var(--gold);
+}
+
+.line-tag {
+    position: absolute;
+    right: 10px;
+    top: -20px;
+    font-size: 10px;
+    background: var(--gold);
+    color: black;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+/* Sidebar & Stats */
 .stats-sidebar {
-    width: 160px;
-    background: #12161c;
-    padding: 20px 10px;
+    width: 180px;
+    background: #181a20;
+    padding: 20px;
     border-right: 1px solid #333;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
 }
 
 .stat-card {
     background: var(--card);
-    padding: 15px 5px;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #444;
-}
-
-.val-green { font-size: 28px; color: var(--green); font-weight: bold; }
-.val-red { font-size: 28px; color: var(--red); font-weight: bold; }
-
-.action-zone {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-}
-
-.chart-box {
-    height: 45%;
-    min-height: 300px;
-    background: #000;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 20px;
-    border: 1px solid #333;
-}
-
-/* --- Table Grid (Index) --- */
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
-    gap: 10px;
-}
-
-.table-card {
-    background: var(--card);
-    border: 2px solid #333;
-    border-radius: 8px;
-    padding: 10px 5px;
-    text-align: center;
-    transition: all 0.2s ease;
-}
-
-.table-card.out {
-    opacity: 0.15;
-    filter: grayscale(1);
-    border-color: transparent;
-}
-
-.table-num { font-size: 12px; color: var(--gray); }
-.bet-indicator { font-size: 16px; font-weight: bold; margin-top: 4px; }
-
-/* Dynamic Bet Colors */
-.bet-up { border-color: var(--green) !important; box-shadow: 0 0 10px rgba(0, 192, 118, 0.3); color: var(--green); }
-.bet-down { border-color: var(--red) !important; box-shadow: 0 0 10px rgba(223, 41, 74, 0.3); color: var(--red); }
-
-/* --- Admin Styles --- */
-.admin-body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: #000;
-}
-
-.admin-panel {
-    width: 90%;
-    max-width: 400px;
-    background: var(--card);
-    padding: 30px;
-    border-radius: 16px;
-    border: 1px solid #333;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.control-group { margin-bottom: 20px; }
-.control-group label { display: block; margin-bottom: 8px; color: var(--gray); font-size: 12px; }
-
-input[type="number"] {
-    width: 100%;
-    padding: 12px;
-    background: #12161c;
-    border: 1px solid #444;
-    color: white;
-    border-radius: 8px;
-    font-size: 16px;
-    box-sizing: border-box;
-}
-
-button {
-    width: 100%;
     padding: 15px;
-    border: none;
     border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    font-size: 14px;
-    text-transform: uppercase;
-    transition: opacity 0.2s;
-}
-
-button:active { opacity: 0.7; }
-.btn-blue { background: #3498db; color: white; margin-bottom: 10px; }
-.btn-gold { background: var(--gold); color: black; margin-bottom: 10px; }
-.btn-green { background: var(--green); color: black; }
-
-/* --- Mobile Table Page --- */
-.mobile-body {
-    padding: 20px;
+    margin-bottom: 15px;
     text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    border: 1px solid #444;
 }
 
-.mobile-header {
-    width: 100%;
-    margin-bottom: 30px;
-}
+.val-green { font-size: 32px; color: var(--green); font-weight: bold; }
+.val-red { font-size: 32px; color: var(--red); font-weight: bold; }
 
-.bet-buttons {
-    width: 100%;
-    max-width: 300px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
+/* Grid & Cards */
+.action-zone { flex: 1; padding: 20px; overflow-y: auto; }
+.chart-box { height: 350px; background: #000; border-radius: 8px; overflow: hidden; margin-bottom: 20px; border: 1px solid #333; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; }
 
-.bet-btn {
-    height: 80px;
-    font-size: 22px;
-    background: #2b2f36;
-    color: white;
-    border: 2px solid #444;
-    border-radius: 12px;
-}
+.table-card { background: var(--card); border: 2px solid #333; border-radius: 8px; padding: 10px; text-align: center; }
+.table-card.out { opacity: 0.1; filter: grayscale(1); }
+.bet-up { border-color: var(--green); box-shadow: 0 0 10px var(--green); }
+.bet-down { border-color: var(--red); box-shadow: 0 0 10px var(--red); }
 
-.bet-btn.up:active, .bet-btn.up.selected {
-    background: var(--green) !important;
-    border-color: white;
-    color: black;
-}
-
-.bet-btn.down:active, .bet-btn.down.selected {
-    background: var(--red) !important;
-    border-color: white;
-    color: white;
-}
-
-/* --- Winner Overlay --- */
-#winner-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.95);
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.glow-text {
-    color: var(--gold);
-    font-size: 2.5rem;
-    text-shadow: 0 0 20px rgba(243, 186, 47, 0.5);
-    margin: 0;
-}
-
-#winner-table-name {
-    font-size: 5rem;
-    font-weight: 900;
-    color: white;
-    margin: 20px 0;
-}
-
+/* Overlays */
+#winner-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; text-align: center; }
 .hidden { display: none !important; }
+.glow-text { color: var(--gold); font-size: 3rem; text-shadow: 0 0 20px var(--gold); }
+#winner-table-name { font-size: 6rem; font-weight: bold; margin: 20px 0; }
+#winner-final-prize { font-size: 3rem; color: var(--gold); }
 
-/* Responsive adjustments */
-@media (max-width: 600px) {
-    .stats-sidebar { width: 100px; }
-    .val-green, .val-red { font-size: 20px; }
-    .timer-display { font-size: 24px; }
-}
+/* Admin */
+.admin-panel { max-width: 400px; margin: 40px auto; background: var(--card); padding: 25px; border-radius: 12px; border: 1px solid #333; }
+.btn-blue { background: #3498db; color: white; }
+.btn-gold { background: var(--gold); }
+.btn-green { background: var(--green); }
+button { width: 100%; padding: 15px; margin: 5px 0; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+
+/* Mobile Portal */
+.mobile-body { padding: 20px; text-align: center; }
+.bet-btn { width: 100%; padding: 25px; margin: 10px 0; border: 2px solid #444; border-radius: 12px; font-size: 20px; font-weight: bold; background: #2b2f36; color: white; }
+.bet-btn.selected.up { background: var(--green) !important; color: black; }
+.bet-btn.selected.down { background: var(--red) !important; }
