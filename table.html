@@ -14,7 +14,7 @@
     </div>
 
     <div id="bet-ui">
-        <div id="target-box" class="hidden" style="margin-bottom:20px; padding:15px; border:1px solid #444; border-radius:8px; background:#181a20;">
+        <div id="target-box" class="hidden" style="margin-bottom:20px; padding:15px; border:1px solid #444; border-radius:8px;">
             <div class="label" style="font-size:10px;">TARGET TO BEAT</div>
             <div id="target-price" style="font-size:22px; font-weight:bold; color:var(--gold);">$0.00</div>
         </div>
@@ -23,7 +23,7 @@
             <button id="btn-up" class="bet-btn up" onclick="placeBet('up')">UP</button>
             <button id="btn-down" class="bet-btn down" onclick="placeBet('down')">DOWN</button>
         </div>
-        <p id="status-text" style="font-weight:bold; color:var(--gold); margin-top:20px; font-size:18px;">--</p>
+        <p id="status-text" style="font-weight:bold; color:var(--gold); margin-top:20px;">--</p>
     </div>
 
     <script src="app.js"></script>
@@ -31,22 +31,18 @@
         const tid = new URLSearchParams(window.location.search).get('id');
         document.getElementById('table-label').innerText = `TABLE ${tid}`;
 
-        initPriceTicker(p => { 
-            document.getElementById('live-btc').innerText = `$${p.toFixed(2)}`; 
-        });
+        initPriceTicker(p => { document.getElementById('live-btc').innerText = `$${p.toFixed(2)}`; });
 
         stateRef.on('value', snap => {
             const s = snap.val() || {};
             const canBet = (s.status === "BETS OPEN");
             document.querySelectorAll('.bet-btn').forEach(b => b.disabled = !canBet);
-            document.getElementById('status-text').innerText = s.status === "BETS OPEN" ? `TIMER: ${s.timer}s` : s.status;
+            document.getElementById('status-text').innerText = s.status;
             
             if(s.startPrice > 0) {
                 document.getElementById('target-box').classList.remove('hidden');
                 document.getElementById('target-price').innerText = `$${s.startPrice.toFixed(2)}`;
-            } else {
-                document.getElementById('target-box').classList.add('hidden');
-            }
+            } else { document.getElementById('target-box').classList.add('hidden'); }
         });
 
         tablesRef.child(tid).on('value', snap => {
@@ -55,17 +51,11 @@
             document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
             if(t.currentBet) document.getElementById(`btn-${t.currentBet}`).classList.add('selected');
             if(t.status === 'out') {
-                document.body.innerHTML = `
-                    <div style="text-align:center; padding-top:100px; color:var(--red);">
-                        <h1 style="font-size:48px;">OUT</h1>
-                        <p style="color:white;">Eliminated this round.</p>
-                    </div>`;
+                document.body.innerHTML = `<div style="text-align:center; padding-top:100px; color:var(--red);"><h1>ELIMINATED</h1></div>`;
             }
         });
 
-        function placeBet(dir) { 
-            tablesRef.child(tid).update({ currentBet: dir }); 
-        }
+        function placeBet(dir) { tablesRef.child(tid).update({ currentBet: dir }); }
     </script>
 </body>
 </html>
