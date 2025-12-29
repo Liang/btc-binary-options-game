@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>BTC Tournament - War Room</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -51,7 +50,8 @@
                 <script>
                     new TradingView.widget({
                         "autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "1",
-                        "theme": "dark", "style": "1", "container_id": "tv-chart", "hide_top_toolbar": true
+                        "theme": "dark", "style": "1", "container_id": "tv-chart", 
+                        "hide_top_toolbar": true, "enable_publishing": false, "withdateranges": false
                     });
                 </script>
             </div>
@@ -61,13 +61,10 @@
 
     <script src="app.js"></script>
     <script>
-        // Real-time Price Sync (Updates every 1s without refresh)
-        setInterval(async () => {
-            const p = await fetchBTCPrice();
-            if(p) {
-                document.getElementById('btc-price').innerText = p.toLocaleString(undefined, {minimumFractionDigits: 2});
-            }
-        }, 1000);
+        // WebSocket Price Ticker for maximum sync speed
+        initPriceTicker((price) => {
+            document.getElementById('btc-price').innerText = price.toLocaleString(undefined, {minimumFractionDigits: 2});
+        });
 
         stateRef.on('value', snap => {
             const s = snap.val() || {};

@@ -16,13 +16,11 @@ const tablesRef = db.ref('tables');
 
 const BUY_IN = 1200;
 
-async function fetchBTCPrice() {
-    try {
-        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
-        const data = await res.json();
-        return parseFloat(data.price);
-    } catch (e) {
-        console.error("Binance Sync Error:", e);
-        return null;
-    }
+// Instant Price Logic
+function initPriceTicker(callback) {
+    const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@ticker");
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        callback(parseFloat(data.c)); // 'c' is the current price
+    };
 }

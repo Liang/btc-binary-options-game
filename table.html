@@ -8,22 +8,19 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body class="mobile-body">
-    <div id="lock-screen" class="hidden" style="position:fixed; inset:0; background:#000; z-index:999; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center;">
-        <div>
-            <h2 style="color:var(--red)">TABLE ALREADY CLAIMED</h2>
-            <p>This table is currently in use by another device.</p>
-        </div>
-    </div>
-
     <div class="mobile-header">
         <h2 id="table-label">TABLE --</h2>
         <div id="live-btc" style="color:var(--gold); font-family:monospace;">$---</div>
     </div>
 
     <div id="bet-ui">
+        <div id="selection-display" style="padding:10px; margin-bottom:15px; border-radius:8px; background:#181a20; font-size:14px;">
+            YOUR SELECTION: <span id="current-pick" style="font-weight:bold; color:var(--gold)">NONE</span>
+        </div>
+
         <div class="bet-buttons">
-            <button id="btn-up" class="bet-btn up" onclick="placeBet('up')">BTC GOING UP</button>
-            <button id="btn-down" class="bet-btn down" onclick="placeBet('down')">BTC GOING DOWN</button>
+            <button id="btn-up" class="bet-btn up" onclick="placeBet('up')">UP</button>
+            <button id="btn-down" class="bet-btn down" onclick="placeBet('down')">DOWN</button>
         </div>
         <p id="status-text" style="font-weight:bold; color:var(--gold)">--</p>
     </div>
@@ -33,43 +30,35 @@
         const tid = new URLSearchParams(window.location.search).get('id');
         document.getElementById('table-label').innerText = `TABLE ${tid}`;
 
-        // TABLE SECURITY: Device Token
-        let myToken = localStorage.getItem(`token_table_${tid}`);
-        if(!myToken) {
-            myToken = Math.random().toString(36).substr(2, 9);
-        }
-
-        // Claim logic
-        tablesRef.child(tid).once('value', snap => {
-            const t = snap.val();
-            if(!t.claimedBy || t.claimedBy === myToken) {
-                localStorage.setItem(`token_table_${tid}`, myToken);
-                tablesRef.child(tid).update({ claimedBy: myToken });
-            } else {
-                document.getElementById('lock-screen').classList.remove('hidden');
-            }
+        initPriceTicker((price) => {
+            document.getElementById('live-btc').innerText = `$${price.toFixed(2)}`;
         });
-
-        setInterval(async () => {
-            const p = await fetchBTCPrice();
-            if(p) document.getElementById('live-btc').innerText = `$${p.toFixed(2)}`;
-        }, 1000);
 
         stateRef.on('value', snap => {
             const s = snap.val();
             const btns = document.querySelectorAll('.bet-btn');
-            // FIX: Ensure status matches EXACTLY what Admin sets
             const canBet = (s.status === "BETS OPEN");
-            
             btns.forEach(b => b.disabled = !canBet);
-            document.getElementById('status-text').innerText = s.status === "BETS OPEN" ? `TIMER: ${s.timer}s` : s.status;
+            document.getElementById('status-text').innerText = s.status;
         });
 
         tablesRef.child(tid).on('value', snap => {
             const t = snap.val();
             if(!t) return;
+            
+            // Visual Update for chosen direction
+            const pickDisplay = document.getElementById('current-pick');
             document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
-            if(t.currentBet) document.getElementById(`btn-${t.currentBet}`).classList.add('selected');
+            
+            if(t.currentBet) {
+                document.getElementById(`btn-${t.currentBet}`).classList.add('selected');
+                pickDisplay.innerText = t.currentBet.toUpperCase();
+                pickDisplay.style.color = t.currentBet === 'up' ? 'var(--green)' : 'var(--red)';
+            } else {
+                pickDisplay.innerText = "NONE";
+                pickDisplay.style.color = "var(--gold)";
+            }
+
             if(t.status === 'out') {
                 document.getElementById('bet-ui').innerHTML = "<h1 style='color:red; margin-top:50px;'>ELIMINATED</h1>";
             }
