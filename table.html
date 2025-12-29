@@ -10,42 +10,43 @@
 <body class="mobile-body">
     <div class="mobile-header">
         <h2 id="table-label">T--</h2>
-        <div class="price-box">
-            <div id="live-btc" style="color:var(--gold); font-size: 20px;">$---</div>
-            <div id="target-btc" style="font-size: 12px; color: gray;">Target: $---</div>
-        </div>
+        <div id="live-btc" style="color:var(--gold); font-family:monospace; font-size:24px;">$---</div>
     </div>
 
     <div id="bet-ui">
-        <div id="trend-indicator" style="font-size: 24px; margin: 20px 0; font-weight: bold;">--</div>
+        <div id="target-box" class="hidden" style="margin-bottom:20px; padding:15px; border:1px solid #444; border-radius:8px; background:#181a20;">
+            <div class="label" style="font-size:10px;">TARGET TO BEAT</div>
+            <div id="target-price" style="font-size:22px; font-weight:bold; color:var(--gold);">$0.00</div>
+        </div>
+
         <div class="bet-buttons">
             <button id="btn-up" class="bet-btn up" onclick="placeBet('up')">UP</button>
             <button id="btn-down" class="bet-btn down" onclick="placeBet('down')">DOWN</button>
         </div>
+        <p id="status-text" style="font-weight:bold; color:var(--gold); margin-top:20px; font-size:18px;">--</p>
     </div>
 
     <script src="app.js"></script>
     <script>
         const tid = new URLSearchParams(window.location.search).get('id');
-        let targetPrice = 0;
+        document.getElementById('table-label').innerText = `TABLE ${tid}`;
 
-        initPriceTicker((price) => {
-            document.getElementById('live-btc').innerText = `$${price.toFixed(2)}`;
-            if (targetPrice > 0) {
-                const diff = price - targetPrice;
-                const trend = document.getElementById('trend-indicator');
-                trend.innerText = diff >= 0 ? "▲ ABOVE" : "▼ BELOW";
-                trend.style.color = diff >= 0 ? "var(--green)" : "var(--red)";
-            }
+        initPriceTicker(p => { 
+            document.getElementById('live-btc').innerText = `$${p.toFixed(2)}`; 
         });
 
         stateRef.on('value', snap => {
-            const s = snap.val();
-            targetPrice = s.startPrice || 0;
-            document.getElementById('target-btc').innerText = `Target: $${targetPrice.toFixed(2)}`;
+            const s = snap.val() || {};
+            const canBet = (s.status === "BETS OPEN");
+            document.querySelectorAll('.bet-btn').forEach(b => b.disabled = !canBet);
+            document.getElementById('status-text').innerText = s.status === "BETS OPEN" ? `TIMER: ${s.timer}s` : s.status;
             
-            const btns = document.querySelectorAll('.bet-btn');
-            btns.forEach(b => b.disabled = (s.status !== "BETS OPEN"));
+            if(s.startPrice > 0) {
+                document.getElementById('target-box').classList.remove('hidden');
+                document.getElementById('target-price').innerText = `$${s.startPrice.toFixed(2)}`;
+            } else {
+                document.getElementById('target-box').classList.add('hidden');
+            }
         });
 
         tablesRef.child(tid).on('value', snap => {
@@ -53,10 +54,18 @@
             if(!t) return;
             document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
             if(t.currentBet) document.getElementById(`btn-${t.currentBet}`).classList.add('selected');
-            if(t.status === 'out') document.body.innerHTML = "<h1>ELIMINATED</h1>";
+            if(t.status === 'out') {
+                document.body.innerHTML = `
+                    <div style="text-align:center; padding-top:100px; color:var(--red);">
+                        <h1 style="font-size:48px;">OUT</h1>
+                        <p style="color:white;">Eliminated this round.</p>
+                    </div>`;
+            }
         });
 
-        function placeBet(dir) { tablesRef.child(tid).update({ currentBet: dir }); }
+        function placeBet(dir) { 
+            tablesRef.child(tid).update({ currentBet: dir }); 
+        }
     </script>
 </body>
 </html>

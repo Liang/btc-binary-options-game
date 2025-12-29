@@ -1,90 +1,94 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Tournament Admin</title>
+    <title>Admin - BTC Tournament</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body class="admin-body">
     <div class="admin-panel">
-        <h2 style="color:var(--gold)">MASTER CONTROL</h2>
+        <h2>ADMIN CONTROL</h2>
         <div class="control-group">
-            <label>Table Count:</label>
+            <label>Table Count</label>
             <input type="number" id="init-count" value="10">
         </div>
         <div class="control-group">
-            <label>Round Timer (sec):</label>
+            <label>Timer (Seconds)</label>
             <input type="number" id="round-duration" value="60">
         </div>
-        <button onclick="confirmInit()" class="btn-blue">RESET & SETUP TOURNAMENT</button>
+        <button onclick="if(confirm('Reset all table data and start fresh?')) initGame()" class="btn-blue">RESET TOURNAMENT</button>
         <hr>
         <button onclick="startRound()" class="btn-gold">1. START BETTING WINDOW</button>
-        <button onclick="autoResolve()" class="btn-green">2. RESOLVE ROUND</button>
+        <hr>
+        <p>RESOLVE BASED ON WINNING DIRECTION:</p>
+        <div style="display:flex; gap:10px;">
+            <button onclick="resolveGame('up')" class="btn-green">WIN: UP</button>
+            <button onclick="resolveGame('down')" style="background:var(--red); color:white">WIN: DOWN</button>
+        </div>
     </div>
 
     <script src="app.js"></script>
     <script>
-        let countdownInterval = null;
-
-        function confirmInit() {
-            if (confirm("WARNING: This will clear all current game data, eliminations, and prize pools. Proceed?")) {
-                initGame();
-            }
-        }
+        let timerIdx = null;
 
         function initGame() {
-            if(countdownInterval) clearInterval(countdownInterval);
-            const count = parseInt(document.getElementById('init-count').value);
-            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", timer: "--", startPrice: 0 });
+            if(timerIdx) clearInterval(timerIdx);
+            const count = document.getElementById('init-count').value;
+            stateRef.set({ tableCount: count, jackpot: 0, status: "READY", startPrice: 0, timer: "--" });
             tablesRef.set({});
             for(let i=1; i<=count; i++) {
-                tablesRef.child(i).set({ status: 'active', currentBet: "", claimedBy: null });
+                tablesRef.child(i).set({ status: 'active', currentBet: "" });
             }
         }
 
         async function startRound() {
-            if(countdownInterval) clearInterval(countdownInterval);
-            
-            // Capture the EXACT price when betting starts
+            if(timerIdx) clearInterval(timerIdx);
             const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
             const data = await res.json();
             const startPrice = parseFloat(data.price);
-
-            tablesRef.once('value', snap => {
-                const tables = snap.val();
+            
+            tablesRef.once('value', s => {
+                const tables = s.val();
                 Object.keys(tables).forEach(id => {
-                    if(tables[id].status === 'active') tablesRef.child(id).update({ currentBet: "" });
+                    if(tables[id].status === 'active') {
+                        tablesRef.child(id).update({currentBet: ""});
+                    }
                 });
             });
 
-            const duration = parseInt(document.getElementById('round-duration').value);
-            stateRef.update({ status: "BETS OPEN", timer: duration, startPrice: startPrice });
+            let t = document.getElementById('round-duration').value;
+            stateRef.update({ status: "BETS OPEN", timer: t, startPrice: startPrice });
 
-            let t = duration;
-            countdownInterval = setInterval(() => {
+            timerIdx = setInterval(() => {
                 t--;
                 stateRef.update({ timer: t });
                 if(t <= 0) {
-                    clearInterval(countdownInterval);
+                    clearInterval(timerIdx);
                     stateRef.update({ status: "BETS LOCKED", timer: "LOCKED" });
                 }
             }, 1000);
         }
 
-        async function autoResolve() {
-            const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT");
-            const data = await res.json();
-            const currentPrice = parseFloat(data.price);
-            
-            stateRef.once('value', s => {
-                const result = currentPrice >= s.val().startPrice ? 'up' : 'down';
-                resolveGame(result);
+        function resolveGame(winDir) {
+            tablesRef.once('value', snap => {
+                const tables = snap.val();
+                let survivors = [];
+                Object.keys(tables).forEach(id => {
+                    if(tables[id].status === 'active') {
+                        if(tables[id].currentBet !== winDir) {
+                            tablesRef.child(id).update({ status: 'out' });
+                        } else {
+                            survivors.push(id);
+                        }
+                    }
+                });
+                stateRef.once('value', s => {
+                    const count = s.val().tableCount;
+                    const jackpot = survivors.length === 1 ? (count * BUY_IN) : (count - survivors.length) * BUY_IN;
+                    stateRef.update({ status: `RESULT: ${winDir.toUpperCase()}`, jackpot: jackpot, startPrice: 0 });
+                });
             });
-        }
-
-        function resolveGame(winningDir) {
-            // ... (Same survivor logic as previous version)
         }
     </script>
 </body>

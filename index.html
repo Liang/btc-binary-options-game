@@ -1,34 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>BTC Tournament - War Room</title>
+    <meta charset="UTF-8">
+    <title>BTC Tournament - Projector</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body class="projector">
     <header class="game-header">
-        <div class="jackpot-container"><span class="label">PRIZE POOL</span><div id="jackpot-value">$0</div></div>
-        <div class="status-center">
-            <div id="game-status">IDLE</div>
-            <div id="countdown" class="timer-display">--</div>
-            <div id="target-price-display" class="hidden">TARGET: <span id="target-val">0.00</span></div>
+        <div class="jackpot-container">
+            <span class="label">TOTAL PRIZE POOL</span>
+            <div id="jackpot-value">$0</div>
         </div>
-        <div class="price-ticker"><span class="label">BTC / USDT</span><div id="btc-price">------</div></div>
+        <div class="status-center">
+            <div id="game-status">INITIALIZING</div>
+            <div id="countdown" class="timer-display">--</div>
+            <div id="target-ui" class="hidden" style="color:var(--gold); font-weight:bold;">
+                TARGET: $<span id="target-val">0</span>
+            </div>
+        </div>
+        <div class="price-ticker">
+            <span class="label">BTC / USDT (LIVE)</span>
+            <div id="btc-price">0.00</div>
+        </div>
     </header>
 
     <main class="game-container">
         <section class="action-zone">
-            <div class="chart-box" style="position:relative;">
-                <div id="price-line" class="hidden">
-                    <span class="line-label">TARGET</span>
-                </div>
+            <div class="chart-box">
                 <div id="tv-chart" style="height:100%"></div>
                 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
                 <script>
                     new TradingView.widget({
-                        "autosize": true, "symbol": "BINANCE:BTCUSDT", "interval": "1",
-                        "theme": "dark", "style": "1", "container_id": "tv-chart", "hide_top_toolbar": true
+                        "autosize": true,
+                        "symbol": "BINANCE:BTCUSDT",
+                        "interval": "1",
+                        "theme": "dark",
+                        "style": "1",
+                        "container_id": "tv-chart",
+                        "hide_top_toolbar": true,
+                        "enable_publishing": false,
+                        "save_image": false
                     });
                 </script>
             </div>
@@ -38,40 +52,21 @@
 
     <script src="app.js"></script>
     <script>
-        let currentLivePrice = 0;
-
-        initPriceTicker((price) => {
-            currentLivePrice = price;
-            document.getElementById('btc-price').innerText = price.toLocaleString(undefined, {minimumFractionDigits: 2});
-            updatePriceLineVisual(price);
+        initPriceTicker(p => {
+            document.getElementById('btc-price').innerText = p.toFixed(2);
         });
-
-        function updatePriceLineVisual(livePrice) {
-            stateRef.once('value', snap => {
-                const s = snap.val();
-                const line = document.getElementById('price-line');
-                if (s.status === "BETS OPEN" || s.status === "BETS LOCKED") {
-                    line.classList.remove('hidden');
-                    // Logic to move the line slightly based on price delta (Visual only)
-                    const delta = livePrice - s.startPrice;
-                    const offset = Math.min(Math.max(delta * 0.5, -150), 150); 
-                    line.style.transform = `translateY(${offset}px)`;
-                } else {
-                    line.classList.add('hidden');
-                }
-            });
-        }
 
         stateRef.on('value', snap => {
             const s = snap.val() || {};
-            document.getElementById('game-status').innerText = s.status;
+            document.getElementById('jackpot-value').innerText = `$${(s.jackpot || 0).toLocaleString()}`;
+            document.getElementById('game-status').innerText = s.status || "IDLE";
             document.getElementById('countdown').innerText = s.timer || "--";
             
-            if (s.startPrice) {
-                document.getElementById('target-price-display').classList.remove('hidden');
-                document.getElementById('target-val').innerText = s.startPrice.toLocaleString();
+            if(s.startPrice > 0) {
+                document.getElementById('target-ui').classList.remove('hidden');
+                document.getElementById('target-val').innerText = s.startPrice.toLocaleString(undefined, {minimumFractionDigits: 2});
             } else {
-                document.getElementById('target-price-display').classList.add('hidden');
+                document.getElementById('target-ui').classList.add('hidden');
             }
         });
 
@@ -79,12 +74,15 @@
             const data = snap.val();
             const grid = document.getElementById('table-grid');
             grid.innerHTML = ''; 
-            if (!data) return;
+            if(!data) return;
             Object.keys(data).sort((a,b) => a-b).forEach(id => {
-                const table = data[id];
+                const t = data[id];
                 const card = document.createElement('div');
-                card.className = `table-card ${table.status} ${table.currentBet ? 'has-bet' : ''}`;
-                card.innerHTML = `<div class="table-num">T-${id}</div><div class="table-bet">${table.currentBet || ''}</div>`;
+                card.className = `table-card ${t.status} bet-${t.currentBet || 'none'}`;
+                card.innerHTML = `
+                    <div class="table-num">T-${id}</div>
+                    <div class="bet-indicator">${t.currentBet ? t.currentBet.toUpperCase() : '-'}</div>
+                `;
                 grid.appendChild(card);
             });
         });
